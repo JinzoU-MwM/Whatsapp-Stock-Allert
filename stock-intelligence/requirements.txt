@@ -1,0 +1,7 @@
+yfinance
+pandas_ta
+pandas
+google-generativeai
+requests
+mplfinance
+duckduckgo-search

@@ -1,0 +1,68 @@
+import os
+import google.generativeai as genai
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def get_ai_analysis(ticker, ta_data, news_summary=""):
+    """
+    Uses Gemini to analyze the provided Technical Data AND News.
+    """
+    # Re-check API key here
+    current_api_key = os.getenv("GOOGLE_API_KEY")
+    if not current_api_key:
+        return "Gemini API Key missing."
+    
+    genai.configure(api_key=current_api_key)
+
+    print(f"Analyzing technical data for {ticker}...")
+    
+    try:
+        # Using Gemini 2.0 Flash Exp (Smart & Fast) for reasoning
+        model = genai.GenerativeModel('gemini-2.0-flash-exp') 
+        
+        # Construct Analysis Prompt
+        prompt = f"""
+        Bertindaklah sebagai Analis Saham Profesional Senior (Technical & Fundamental).
+        Tugasmu adalah menganalisis data untuk saham {ticker}.
+        
+        1. DATA TEKNIKAL & VOLUME FLOW (DATAFAKTA):
+        - Harga Terakhir: {ta_data['price']:.0f}
+        - Tren Utama: {ta_data['trend']}
+        - Tren Weekly: {ta_data.get('major_trend', 'N/A')}
+        - RSI (Momentum): {ta_data['rsi']:.2f}
+        - Volume Status: {ta_data['vol_status']} ({ta_data['vol_ratio']:.2f}x avg)
+        - SMART MONEY FLOW (Vol Proxy): {ta_data['bandar_status']} ({ta_data['bandar_action']})
+        - Major Holder (Context): {ta_data.get('major_holders', 'N/A')}
+        - Support: {ta_data['support']:.0f} | Resistance: {ta_data['resistance']:.0f}
+        
+        2. SENTIMEN BERITA (REAL-TIME):
+        {news_summary}
+        
+        TUGAS UTAMA: 
+        Cari kata kunci "Net Buy", "Net Sell", "Asing", "Foreign", "Borong", atau "Guyur" di dalam berita.
+        Jika ditemukan, jadikan itu sebagai "REAL BANDARMOLOGI insight".
+        
+        BERIKAN ANALISIS KAMU (Bahasa Indonesia):
+        1. KORELASI BERITA & FOREIGN FLOW (REAL BANDAR):
+           - Apakah ada berita tentang Asing/Bandar melakukan Net Buy/Sell? Jelaskan.
+           - Apakah berita mendukung pergerakan harga?
+           
+        2. ANALISA TEKNIKAL & VOLUME FLOW: 
+           - Jelaskan kekuatan tren dan Volume Flow (Akumulasi/Distribusi).
+           - Apakah volume mendukung pergerakan harga?
+           
+        3. KESIMPULAN & STRATEGI: 
+           - REKOMENDASI: BUY, HOLD, atau SELL?
+           - Alasannya dalam 1 kalimat padat.
+        
+        Maksimal 200 kata. Gunakan emoji.
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text.strip()
+        
+    except Exception as e:
+        return f"Error analyzing data: {str(e)}"
