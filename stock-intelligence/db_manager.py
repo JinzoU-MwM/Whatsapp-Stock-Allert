@@ -25,10 +25,27 @@ def init_db():
             full_message TEXT
         )
     ''')
+
+    # Favorites Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS favorites (
+            ticker TEXT PRIMARY KEY
+        )
+    ''')
+
+    # History Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     conn.commit()
     conn.close()
 
+# --- ANALYSIS CACHE ---
 def get_cached_analysis(ticker, minutes_valid=120):
     """
     Retrieves cached analysis for a ticker if it's fresher than 'minutes_valid'.
@@ -83,3 +100,55 @@ def save_analysis(ticker, ta_data, ai_analysis, full_message):
     conn.commit()
     conn.close()
     print(f"Saved analysis for {ticker} to database.")
+
+# --- FAVORITES ---
+def add_favorite(ticker):
+    conn = get_db_connection()
+    try:
+        conn.execute("INSERT OR IGNORE INTO favorites (ticker) VALUES (?)", (ticker.upper(),))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding favorite: {e}")
+        return False
+    finally:
+        conn.close()
+
+def remove_favorite(ticker):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM favorites WHERE ticker = ?", (ticker.upper(),))
+    conn.commit()
+    conn.close()
+
+def get_favorites():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT ticker FROM favorites ORDER BY ticker")
+    rows = cursor.fetchall()
+    conn.close()
+    return [row['ticker'] for row in rows]
+
+def is_favorite(ticker):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM favorites WHERE ticker = ?", (ticker.upper(),))
+    exists = cursor.fetchone() is not None
+    conn.close()
+    return exists
+
+# --- HISTORY ---
+def add_history(ticker):
+    conn = get_db_connection()
+    # Optional: Delete duplicates to keep only latest entry for cleaner history?
+    # For now, we just insert.
+    conn.execute("INSERT INTO history (ticker, timestamp) VALUES (?, ?)", (ticker.upper(), datetime.now()))
+    conn.commit()
+    conn.close()
+
+def get_history(limit=10):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT ticker FROM history ORDER BY timestamp DESC LIMIT ?", (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [row['ticker'] for row in rows]

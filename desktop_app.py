@@ -45,13 +45,16 @@ class StockSignalApp(ctk.CTk):
         # Start QR Polling
         self.after(3000, self.poll_qr_code)
         
+        # Initial List Load
+        self.update_sidebar_lists()
+        
         # Cleanup on exit
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def setup_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(6, weight=1) # Spacer
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="StockSignal\nIntelligence", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -59,9 +62,93 @@ class StockSignalApp(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Status: Init...", text_color="gray")
         self.status_label.grid(row=1, column=0, padx=20, pady=10)
         
-        # QR Button (Manual Trigger)
+        # QR Button
         self.qr_btn = ctk.CTkButton(self.sidebar_frame, text="📱 Scan QR WhatsApp", command=self.show_qr_modal, fg_color="#333")
         self.qr_btn.grid(row=2, column=0, padx=20, pady=10)
+
+        # Favorites Section
+        self.fav_label = ctk.CTkLabel(self.sidebar_frame, text="⭐ Favorit:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.fav_label.grid(row=3, column=0, padx=20, pady=(20, 5), sticky="w")
+
+        self.fav_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=160, height=200)
+        self.fav_frame.grid(row=4, column=0, padx=10, pady=5)
+        
+        # History Section
+        self.hist_label = ctk.CTkLabel(self.sidebar_frame, text="🕒 Riwayat:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.hist_label.grid(row=5, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.hist_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=160, height=150)
+        self.hist_frame.grid(row=6, column=0, padx=10, pady=5)
+
+    def update_sidebar_lists(self):
+        # Refresh Favorites
+        for widget in self.fav_frame.winfo_children():
+            widget.destroy()
+            
+        favorites = self.controller.get_favorites()
+        if not favorites:
+            ctk.CTkLabel(self.fav_frame, text="Belum ada favorit", text_color="gray").pack()
+        else:
+            for ticker in favorites:
+                # Row frame
+                row = ctk.CTkFrame(self.fav_frame, fg_color="transparent")
+                row.pack(fill="x", pady=2)
+                
+                # Ticker Button (Load)
+                btn = ctk.CTkButton(row, text=ticker, width=100, fg_color="#444", 
+                                  command=lambda t=ticker: self.load_ticker(t))
+                btn.pack(side="left", padx=2)
+                
+                # Delete Button
+                del_btn = ctk.CTkButton(row, text="X", width=20, fg_color="#800000", hover_color="red",
+                                      command=lambda t=ticker: self.remove_favorite(t))
+                del_btn.pack(side="right", padx=2)
+
+        # Refresh History
+        for widget in self.hist_frame.winfo_children():
+            widget.destroy()
+            
+        history = self.controller.get_history(limit=15)
+        if not history:
+            ctk.CTkLabel(self.hist_frame, text="Belum ada riwayat", text_color="gray").pack()
+        else:
+            for ticker in history:
+                btn = ctk.CTkButton(self.hist_frame, text=ticker, fg_color="transparent", border_width=1,
+                                  command=lambda t=ticker: self.load_ticker(t))
+                btn.pack(fill="x", pady=2)
+
+    def load_ticker(self, ticker):
+        self.ticker_entry.delete(0, "end")
+        self.ticker_entry.insert(0, ticker)
+        self.update_favorite_btn_state(ticker)
+        # Optional: Auto start analysis? Maybe not, let user decide.
+        # self.start_analysis_thread()
+
+    def add_favorite(self):
+        ticker = self.ticker_entry.get().strip().upper()
+        if ticker:
+            if self.controller.add_favorite(ticker):
+                self.update_sidebar_lists()
+                self.update_favorite_btn_state(ticker)
+
+    def remove_favorite(self, ticker):
+        self.controller.remove_favorite(ticker)
+        self.update_sidebar_lists()
+        # If current input matches, update button state
+        current = self.ticker_entry.get().strip().upper()
+        if current == ticker:
+            self.update_favorite_btn_state(current)
+
+    def update_favorite_btn_state(self, ticker):
+        if not ticker:
+            self.fav_action_btn.configure(state="disabled", text="⭐")
+            return
+            
+        self.fav_action_btn.configure(state="normal")
+        if self.controller.is_favorite(ticker):
+            self.fav_action_btn.configure(text="★ Favorit", fg_color="gold", text_color="black", command=lambda: self.remove_favorite(ticker))
+        else:
+            self.fav_action_btn.configure(text="☆ Add Fav", fg_color="transparent", text_color="white", command=self.add_favorite)
 
     def setup_main_area(self):
         self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -71,9 +158,18 @@ class StockSignalApp(ctk.CTk):
         self.input_label = ctk.CTkLabel(self.main_frame, text="Kode Saham / Ticker (Contoh: BREN, DEWI)", font=ctk.CTkFont(size=14))
         self.input_label.pack(anchor="w", pady=(0, 5))
 
-        self.ticker_entry = ctk.CTkEntry(self.main_frame, placeholder_text="Masukkan Ticker...", width=300)
-        self.ticker_entry.pack(anchor="w", pady=(0, 10))
+        # Input Row Frame
+        input_row = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        input_row.pack(anchor="w", fill="x", pady=(0, 10))
+
+        self.ticker_entry = ctk.CTkEntry(input_row, placeholder_text="Masukkan Ticker...", width=300)
+        self.ticker_entry.pack(side="left", padx=(0, 10))
         self.ticker_entry.bind('<Return>', self.start_analysis_thread)
+        self.ticker_entry.bind('<KeyRelease>', lambda e: self.update_favorite_btn_state(self.ticker_entry.get().strip().upper()))
+
+        # Favorite Toggle Button
+        self.fav_action_btn = ctk.CTkButton(input_row, text="☆ Add Fav", width=100, command=self.add_favorite)
+        self.fav_action_btn.pack(side="left")
 
         self.analyze_btn = ctk.CTkButton(self.main_frame, text="🚀 Analisa Lengkap (Deep Dive)", command=self.start_analysis_thread)
         self.analyze_btn.pack(anchor="w", pady=(0, 10))
@@ -249,6 +345,9 @@ class StockSignalApp(ctk.CTk):
         self.console_textbox.configure(state="normal")
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
+        
+        # Clear preview text before starting new analysis
+        self.preview_textbox.delete("1.0", "end")
 
         threading.Thread(target=self.run_analysis_safe, args=(ticker,), daemon=True).start()
 
@@ -262,6 +361,9 @@ class StockSignalApp(ctk.CTk):
             self.current_chart_path = chart_path
             self.preview_textbox.insert("end", final_message)
             self.send_btn.configure(state="normal")
+            
+            # Update History UI safely in main thread
+            self.after(0, self.update_sidebar_lists)
             
         except Exception as e:
             self.log_ui(f"❌ CRITICAL ERROR: {e}")

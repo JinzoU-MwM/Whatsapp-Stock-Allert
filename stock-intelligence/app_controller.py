@@ -101,6 +101,9 @@ class StockAppController:
         ticker = ticker.upper()
         self.log(f"🔵 Memulai Deep Dive untuk {ticker}...")
         if progress_callback: progress_callback(0.1)
+        
+        # Save to History
+        db_manager.add_history(ticker)
 
         # 1. Check Cache
         cached_data = db_manager.get_cached_analysis(ticker)
@@ -159,4 +162,24 @@ class StockAppController:
                 self.log(f"🗑️ Chart dihapus: {os.path.basename(image_path)}")
             except Exception as e:
                 self.log(f"⚠️ Gagal menghapus chart: {e}")
+
+    # --- HISTORY & FAVORITES ---
+    def get_history(self, limit=10):
+        return db_manager.get_history(limit)
+
+    def get_favorites(self):
+        return db_manager.get_favorites()
+
+    def add_favorite(self, ticker):
+        if db_manager.add_favorite(ticker):
+            self.log(f"⭐ {ticker} ditambahkan ke Favorit.")
+            return True
+        return False
+
+    def remove_favorite(self, ticker):
+        db_manager.remove_favorite(ticker)
+        self.log(f"🗑️ {ticker} dihapus dari Favorit.")
+
+    def is_favorite(self, ticker):
+        return db_manager.is_favorite(ticker)
 

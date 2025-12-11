@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  stock-bot:
+    build: .
+    container_name: stock-bot
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/whatsapp-service/node_modules
+    env_file:
+      - .env
+    environment:
+      - DISPLAY=host.docker.internal:0.0
+    # To run the GUI (Requires VcXsrv running on Windows):
+    command: python desktop_app.py
+    restart: unless-stopped
