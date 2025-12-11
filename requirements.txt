@@ -1,0 +1,8 @@
+customtkinter
+yfinance
+pandas_ta
+pandas
+google-generativeai
+requests
+python-dotenv
+mplfinance

@@ -13,85 +13,117 @@ An AI-powered stock analysis tool that combines Technical Analysis, Bandarmology
 *   **WhatsApp Integration**: Sends the full report + Chart Image to your WhatsApp.
 *   **Chart Generation**: Auto-generates Candlestick charts with EMA 20/50 and Volume.
 
+---
+
 ## 🛠️ Prerequisites
 
-*   **Python 3.10+**
-*   **Node.js & npm** (for WhatsApp Service)
-*   **Google Gemini API Key** (Free)
-*   **Serper.dev API Key** (for News Search)
+Before you begin, ensure you have the following installed on your computer:
 
-## 📦 Installation
+1.  **Python 3.10+**: [Download Python](https://www.python.org/downloads/)
+    *   *Important*: During installation, check the box **"Add Python to PATH"**.
+2.  **Node.js & npm** (Required for WhatsApp Service): [Download Node.js](https://nodejs.org/)
+    *   Download the "LTS" version.
+3.  **Git**: [Download Git](https://git-scm.com/downloads)
 
-1.  **Clone the repository**
+---
+
+## 📦 Installation Guide
+
+Follow these steps precisely to set up the project on a new computer.
+
+### 1. Clone the Repository
+Open your terminal (Command Prompt or PowerShell) and run:
+```bash
+git clone https://github.com/JinzoU-MwM/Whatsapp-Stock-Allert.git
+cd Whatsapp-Stock-Allert
+```
+
+### 2. Set up Python Environment
+Create a virtual environment to avoid conflicts:
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate it (Windows)
+venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+*If you are on Mac/Linux, use `source venv/bin/activate`.*
+
+### 3. Set up WhatsApp Service (Node.js)
+Install the dependencies for the WhatsApp gateway:
+```bash
+cd whatsapp-service
+npm install
+cd ..
+```
+
+### 4. Configure Environment Variables
+1.  Copy the example configuration file:
     ```bash
-    git clone https://github.com/JinzoU-MwM/Whatsapp-Stock-Allert.git
-    cd Whatsapp-Stock-Allert
+    copy .env.example .env
     ```
+    *(Or manually create a file named `.env`)*
 
-2.  **Set up Python Environment**
-    ```bash
-    python -m venv venv
-    venv\Scripts\activate
-    pip install -r stock-intelligence/requirements.txt
-    ```
-
-3.  **Set up Node.js Service**
-    ```bash
-    cd whatsapp-service
-    npm install
-    cd ..
-    ```
-
-4.  **Configure Environment**
-    Create a `.env` file in the root directory:
+2.  Open `.env` with a text editor (Notepad, VS Code) and fill in your keys:
     ```ini
-    GOOGLE_API_KEY=your_gemini_api_key
-    SERPER_API_KEY=your_serper_api_key
+    GOOGLE_API_KEY=your_gemini_api_key_here
+    SERPER_API_KEY=your_serper_api_key_here
     TARGET_PHONE=6281234567890@c.us
     ```
-    *Note: Use the "Cari ID Grup WhatsApp" button in the app to find Group IDs (ending in @g.us).*
+    *   **GOOGLE_API_KEY**: Get it from [Google AI Studio](https://aistudio.google.com/).
+    *   **SERPER_API_KEY**: Get it from [Serper.dev](https://serper.dev/).
+    *   **TARGET_PHONE**: Your WhatsApp number (start with country code, e.g., 62 for Indonesia). 
+        *   For personal chat: `6281234567890@c.us`
+        *   For groups: Use the "Cari ID Grup WhatsApp" feature in the app to find the ID (ends in `@g.us`).
 
-## 🚀 Usage
+---
 
-1.  **Run the Application**
-    Double-click `start_app.bat` or run:
+## 🚀 How to Run
+
+### Method 1: The Easy Way (Windows)
+Double-click the **`start_app.bat`** file. 
+*   This script automatically activates the virtual environment and launches the dashboard.
+
+### Method 2: Manual Run
+1.  Open terminal in the project folder.
+2.  Activate Python: `venv\Scripts\activate`
+3.  Run the app:
     ```bash
-    start_app.bat
+    python desktop_app.py
     ```
 
-2.  **Authenticate WhatsApp**
-    *   On the first run, a console window will appear with a QR Code.
-    *   Scan it using WhatsApp (Linked Devices).
-    *   Once authenticated, restart the app. The console will be hidden in future runs.
+---
 
-3.  **Analyze a Stock**
-    *   Enter a Ticker (e.g., `BBRI`, `GOTO`, `NVDA`).
-    *   Click **"Analisa Lengkap"**.
-    *   Wait for the AI to "Think" (logs will appear).
-    *   Review the preview and click **"Kirim ke WhatsApp"**.
+## 📱 WhatsApp Authentication (First Time Only)
 
-## 📂 Project Structure
+1.  When you run the app for the first time, a **console window** (black screen) will appear for the `whatsapp-service`.
+2.  It will generate a **QR Code**.
+3.  Open WhatsApp on your phone -> **Linked Devices** -> **Link a Device**.
+4.  Scan the QR Code.
+5.  Once connected, you can close and restart the app. Future runs will hide this console window automatically.
 
-```
-Whatsapp-Stock-Allert/
-├── desktop_app.py              # Main GUI Dashboard (CustomTkinter)
-├── start_app.bat               # Launcher Script
-├── stock-intelligence/         # Python Core Logic
-│   ├── main.py                 # Core orchestration
-│   ├── technical_analysis.py   # TA & Volume Flow Logic
-│   ├── catalyst_agent.py       # AI (Gemini) Handler
-│   ├── news_fetcher.py         # News Scraper (Serper)
-│   ├── chart_generator.py      # Charting (Mplfinance)
-│   └── db_manager.py           # SQLite Caching
-└── whatsapp-service/           # Node.js WhatsApp Gateway
-    ├── index.js                # Express Server + whatsapp-web.js
-    └── package.json
-```
+---
 
-## ⚠️ Disclaimer
+## ❓ Troubleshooting
 
-This tool is for **educational purposes only**. Stock trading involves risk. The AI generation is probabilistic and should not be taken as financial advice. Always do your own research (DYOR).
+**Q: The app opens but closes immediately.**
+*   Check if you installed dependencies: `pip install -r requirements.txt`.
+*   Check if you have `Node.js` installed.
+
+**Q: "ModuleNotFoundError"**
+*   Make sure you activated the virtual environment (`venv\Scripts\activate`) before running python commands.
+
+**Q: WhatsApp service error / Chromium error**
+*   The `whatsapp-web.js` library needs a browser. It usually downloads Chromium automatically. If it fails, try running `npm install` inside the `whatsapp-service` folder again.
+
+**Q: News fetch failed**
+*   Check your `SERPER_API_KEY` in the `.env` file.
+
+**Q: AI Analysis error**
+*   Check your `GOOGLE_API_KEY` in the `.env` file.
 
 ## 📄 License
-
 MIT License
