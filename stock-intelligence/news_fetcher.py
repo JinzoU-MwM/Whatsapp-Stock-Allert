@@ -14,7 +14,10 @@ def fetch_stock_news(ticker):
     if not api_key or "your_serper" in api_key:
         return "⚠️ Pencarian Berita Dilewati: SERPER_API_KEY belum dikonfigurasi di .env."
 
-    print(f"🌍 Mengambil Berita Real-Time untuk {ticker} via Serper...")
+    try:
+        print(f"Mengambil Berita Real-Time untuk {ticker} via Serper...")
+    except:
+        pass # Silently fail if print fails due to encoding
     
     url = "https://google.serper.dev/search"
     

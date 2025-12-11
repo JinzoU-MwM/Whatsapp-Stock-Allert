@@ -43,15 +43,29 @@ const client = new Client({
 });
 
 let isReady = false;
+let latestQr = null;
 
 client.on('qr', (qr) => {
     console.log('QR RECEIVED. Scan this with WhatsApp:');
     qrcode.generate(qr, { small: true });
+    latestQr = qr; // Store QR for API retrieval
 });
 
 client.on('ready', () => {
     console.log('WhatsApp Client is ready!');
     isReady = true;
+    latestQr = null; // Clear QR when connected
+});
+
+// Endpoint to get QR Code
+app.get('/qr', (req, res) => {
+    if (isReady) {
+        return res.json({ status: 'connected', qr: null });
+    }
+    if (latestQr) {
+        return res.json({ status: 'scanning', qr: latestQr });
+    }
+    return res.json({ status: 'initializing', qr: null });
 });
 
 client.on('authenticated', () => {

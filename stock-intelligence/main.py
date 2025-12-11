@@ -34,6 +34,8 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 
 📊 *DATA TEKNIKAL & VOLUME FLOW:*
 • *Tren:* {ta_data['trend']} {trend_emoji}
+• *MACD:* {ta_data['macd_status']}
+• *Bollinger:* {ta_data['bb_status']}
 • *Volume Flow:* {ta_data['bandar_status']}
 • *Indikasi:* {ta_data['bandar_action']}
 • *Holder Utama:* {ta_data.get('major_holders', 'N/A')}

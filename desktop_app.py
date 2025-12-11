@@ -1,27 +1,15 @@
 import customtkinter as ctk
-import tkinter as tk
 from tkinter import messagebox
 import threading
 import sys
 import os
-import requests
-import subprocess
-from dotenv import load_dotenv
+import time
+from PIL import Image
+import qrcode
 
-# Load env
-load_dotenv()
-
-# Import logic
+# Import Controller
 sys.path.append(os.path.join(os.path.dirname(__file__), 'stock-intelligence'))
-from technical_analysis import analyze_technical
-from catalyst_agent import get_ai_analysis
-from news_fetcher import fetch_stock_news
-from chart_generator import generate_chart
-from main import format_message, broadcast_message
-import db_manager  # Import the new database manager
-
-# Initialize DB on startup
-db_manager.init_db()
+from app_controller import StockAppController
 
 # Configuration
 ctk.set_appearance_mode("Dark")
@@ -32,13 +20,35 @@ class StockSignalApp(ctk.CTk):
         super().__init__()
 
         self.title("StockSignal Intelligence (Antigravity Edition)")
-        self.geometry("900x700")
+        self.geometry("950x750")
+
+        # Initialize Controller
+        self.controller = StockAppController(log_callback=self.log_ui)
         
         # Grid layout
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Sidebar
+        # UI Setup
+        self.setup_sidebar()
+        self.setup_main_area()
+        
+        # State
+        self.current_chart_path = None
+        self.qr_window = None
+        
+        # Startup Checks
+        self.check_api_keys()
+        self.controller.start_wa_service()
+        self.check_service_health()
+        
+        # Start QR Polling
+        self.after(3000, self.poll_qr_code)
+        
+        # Cleanup on exit
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def setup_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
@@ -46,10 +56,14 @@ class StockSignalApp(ctk.CTk):
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="StockSignal\nIntelligence", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Status: Siap (Idle)", text_color="gray")
+        self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Status: Init...", text_color="gray")
         self.status_label.grid(row=1, column=0, padx=20, pady=10)
+        
+        # QR Button (Manual Trigger)
+        self.qr_btn = ctk.CTkButton(self.sidebar_frame, text="📱 Scan QR WhatsApp", command=self.show_qr_modal, fg_color="#333")
+        self.qr_btn.grid(row=2, column=0, padx=20, pady=10)
 
-        # Main Content Area
+    def setup_main_area(self):
         self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
 
@@ -62,9 +76,14 @@ class StockSignalApp(ctk.CTk):
         self.ticker_entry.bind('<Return>', self.start_analysis_thread)
 
         self.analyze_btn = ctk.CTkButton(self.main_frame, text="🚀 Analisa Lengkap (Deep Dive)", command=self.start_analysis_thread)
-        self.analyze_btn.pack(anchor="w", pady=(0, 20))
+        self.analyze_btn.pack(anchor="w", pady=(0, 10))
 
-        # 2. Console / Logs ("The Brain")
+        # Progress Bar
+        self.progress_bar = ctk.CTkProgressBar(self.main_frame, width=300)
+        self.progress_bar.pack(anchor="w", pady=(0, 20))
+        self.progress_bar.set(0)
+
+        # 2. Console / Logs
         self.console_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.console_frame.pack(fill="x", pady=(0, 5))
         
@@ -95,199 +114,186 @@ class StockSignalApp(ctk.CTk):
         self.copy_btn = ctk.CTkButton(self.actions_frame, text="📋 Salin Teks", fg_color="gray", hover_color="darkgray", command=self.copy_to_clipboard)
         self.copy_btn.pack(side="right", padx=10)
 
-        # Check Node.js Service
-        self.check_service_health()
-        
-        # Start WhatsApp Service Management
-        self.wa_process = None
-        self.start_wa_service()
-        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+    # --- LOGIC & BINDINGS ---
 
-    def start_wa_service(self):
-        """Starts the Node.js WhatsApp service in a separate console window."""
-        try:
-            service_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "whatsapp-service")
-            auth_path = os.path.join(service_path, ".wwebjs_auth")
-            
-            # Determine creation flags
-            # If auth exists, hide the window. If not, show it for QR scanning.
-            creation_flags = subprocess.CREATE_NEW_CONSOLE
-            if os.path.exists(auth_path):
-                creation_flags = subprocess.CREATE_NO_WINDOW
-                self.log("✅ Layanan WhatsApp dimulai di latar belakang (Terautentikasi).")
-            else:
-                self.log("✅ Layanan WhatsApp dimulai... (Scan QR di jendela baru)")
-            
-            # We use shell=True to find 'npm' easily
-            self.wa_process = subprocess.Popen(
-                "npm start", 
-                cwd=service_path,
-                shell=True,
-                creationflags=creation_flags
-            )
-        except Exception as e:
-            self.log(f"❌ Gagal memulai Layanan WhatsApp: {e}")
-
-    def on_closing(self):
-        """Kills the WhatsApp service process tree when the app is closed."""
-        if self.wa_process:
-            try:
-                # Taskkill /T kills the process tree (cmd.exe -> npm -> node)
-                subprocess.run(f"taskkill /F /T /PID {self.wa_process.pid}", shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            except Exception as e:
-                print(f"Error killing service: {e}")
-        
-        self.destroy()
-        sys.exit(0)
-
-    def log(self, message):
+    def log_ui(self, message):
+        """Callback for Controller to log to UI"""
         self.console_textbox.configure(state="normal")
         self.console_textbox.insert("end", message + "\n")
         self.console_textbox.see("end")
         self.console_textbox.configure(state="disabled")
 
+    def check_api_keys(self):
+        missing = []
+        if not os.getenv("GOOGLE_API_KEY"): missing.append("GOOGLE_API_KEY")
+        if not os.getenv("SERPER_API_KEY"): missing.append("SERPER_API_KEY")
+        
+        if missing:
+            msg = f"⚠️ API Key Hilang:\n{', '.join(missing)}\n\nSilakan lengkapi file .env"
+            self.after(1000, lambda: messagebox.showwarning("Konfigurasi Belum Lengkap", msg))
+
     def check_service_health(self):
         def _check():
-            try:
-                requests.get("http://localhost:3000/health", timeout=2)
+            is_healthy = self.controller.check_service_health()
+            if is_healthy:
                 self.status_label.configure(text="Sistem: ONLINE ✅", text_color="green")
-            except:
+            else:
                 self.status_label.configure(text="Sistem: OFFLINE ❌", text_color="red")
-                self.log("⚠️ Layanan WhatsApp tidak terdeteksi! Pastikan 'start_app.bat' berjalan benar.")
+                self.log_ui("⚠️ Layanan WhatsApp belum siap. Mencoba lagi...")
+                self.after(5000, self.check_service_health) # Retry
         
         threading.Thread(target=_check, daemon=True).start()
 
-    def fetch_groups(self):
-        self.log("🔍 Sedang mengambil daftar Grup WhatsApp...")
-        def _fetch():
-            try:
-                response = requests.get("http://localhost:3000/groups", timeout=10)
-                if response.status_code == 200:
-                    groups = response.json()
-                    if not groups:
-                        self.log("⚠️ Tidak ada grup ditemukan.")
-                        return
-                    
-                    self.log("\n=== DAFTAR GRUP WHATSAPP ===")
-                    for g in groups:
-                        self.log(f"📁 Nama: {g['name']}")
-                        self.log(f"🔑 ID: {g['id']}")
-                        self.log("-" * 30)
-                    self.log("ℹ️ Salin ID (akhiran @g.us) ke file .env bagian TARGET_PHONE")
-                else:
-                    self.log(f"❌ Gagal mengambil grup: {response.text}")
-            except Exception as e:
-                self.log(f"❌ Error: {str(e)}")
+    # --- QR CODE LOGIC ---
+    def poll_qr_code(self):
+        """Periodically checks if QR code is available."""
+        def _poll():
+            data = self.controller.get_qr_code()
+            if data:
+                status = data.get('status')
+                qr_string = data.get('qr')
+                
+                if status == 'connected':
+                    self.status_label.configure(text="WhatsApp: Connected 🔗", text_color="cyan")
+                    if self.qr_window:
+                        self.qr_window.destroy()
+                        self.qr_window = None
+                
+                elif status == 'scanning' and qr_string:
+                    self.status_label.configure(text="WhatsApp: Scan QR 📷", text_color="orange")
+                    # If we have a QR string, update the modal if it's open, or prompt user
+                    if not self.qr_window:
+                        # Auto-open only once if needed? Or just let user click?
+                        # Let's auto-open for better UX if it's the first time
+                        pass 
+                    else:
+                        self.update_qr_image(qr_string)
+            
+            # Poll every 2 seconds
+            self.after(2000, self.poll_qr_code)
         
-        threading.Thread(target=_fetch, daemon=True).start()
+        threading.Thread(target=_poll, daemon=True).start()
+
+    def show_qr_modal(self):
+        if self.qr_window is None or not self.qr_window.winfo_exists():
+            self.qr_window = ctk.CTkToplevel(self)
+            self.qr_window.title("Scan WhatsApp QR")
+            self.qr_window.geometry("400x450")
+            self.qr_window.attributes("-topmost", True)
+            
+            label = ctk.CTkLabel(self.qr_window, text="Buka WhatsApp -> Linked Devices -> Link Device\nLalu Scan QR Code dibawah:", font=("Arial", 14))
+            label.pack(pady=20)
+            
+            self.qr_image_label = ctk.CTkLabel(self.qr_window, text="Menunggu QR...", width=250, height=250)
+            self.qr_image_label.pack(pady=10)
+            
+            # Trigger immediate fetch
+            threading.Thread(target=self.refresh_qr_display, daemon=True).start()
+        else:
+            self.qr_window.focus()
+
+    def refresh_qr_display(self):
+        data = self.controller.get_qr_code()
+        if data and data.get('qr'):
+            self.update_qr_image(data.get('qr'))
+        elif data and data.get('status') == 'connected':
+             if self.qr_window:
+                ctk.CTkLabel(self.qr_window, text="✅ Terhubung!", font=("Arial", 20), text_color="green").pack(pady=50)
+                self.after(2000, self.qr_window.destroy)
+
+    def update_qr_image(self, qr_data):
+        if not self.qr_window or not self.qr_window.winfo_exists():
+            return
+            
+        try:
+            # Generate QR Image
+            qr = qrcode.QRCode(box_size=10, border=2)
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to CTkImage
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 250))
+            
+            self.qr_image_label.configure(image=ctk_img, text="")
+        except Exception as e:
+            try:
+                print(f"QR Gen Error: {e}")
+            except:
+                pass
+
+    # --- CORE FEATURES ---
+    
+    def fetch_groups(self):
+        self.log_ui("🔍 Mengambil daftar grup...")
+        def _run():
+            groups = self.controller.fetch_groups()
+            if not groups:
+                self.log_ui("⚠️ Tidak ada grup / Gagal koneksi.")
+                return
+            
+            self.log_ui("\n=== DAFTAR GRUP WHATSAPP ===")
+            for g in groups:
+                self.log_ui(f"📁 {g['name']} | ID: {g['id']}")
+            self.log_ui("ℹ️ Copy ID yang berakhiran @g.us ke .env")
+            
+        threading.Thread(target=_run, daemon=True).start()
 
     def start_analysis_thread(self, event=None):
         ticker = self.ticker_entry.get().strip()
         if not ticker:
-            messagebox.showwarning("Input Error", "Masukkan kode saham terlebih dahulu.")
             return
 
-        self.analyze_btn.configure(state="disabled")
-        self.send_btn.configure(state="disabled")
-        self.preview_textbox.delete("1.0", "end")
+        self.toggle_inputs(False)
+        self.progress_bar.set(0)
         self.console_textbox.configure(state="normal")
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
-        
-        threading.Thread(target=self.run_analysis, args=(ticker,), daemon=True).start()
 
-    def run_analysis(self, ticker):
-        self.log(f"🔵 Memulai Deep Dive untuk {ticker.upper()}...")
-        
-        # 1. Check Cache
-        cached_data = db_manager.get_cached_analysis(ticker.upper())
-        if cached_data:
-            self.log("⚡ Menggunakan Data Cache (Hemat Token)...")
-            self.log(f"📅 Waktu Analisa: {cached_data['timestamp']}")
-            
-            final_message = cached_data['full_message']
-            
-            # Update UI
-            self.preview_textbox.insert("end", final_message)
-            self.send_btn.configure(state="normal")
-            self.analyze_btn.configure(state="normal")
-            
-            # Restore chart path if exists
-            chart_filename = f"chart_{ticker.upper()}.jpg"
-            chart_path = os.path.join(os.getcwd(), "stock-intelligence", "charts", chart_filename)
-            if os.path.exists(chart_path):
-                self.current_chart_path = chart_path
-                self.log(f"📊 Chart (Cache) siap dikirim.")
-            else:
-                self.current_chart_path = None
-                
-            self.log("✅ Analisa (Cache) Siap! Silakan review.")
-            return
+        threading.Thread(target=self.run_analysis_safe, args=(ticker,), daemon=True).start()
 
+    def run_analysis_safe(self, ticker):
         try:
-            # 2. Technical Analysis (Real-time)
-            self.log("📊 Menjalankan Analisa Teknikal (Daily + Weekly)...")
-            ta_data = analyze_technical(ticker.upper())
-            self.log(f"✅ TA Selesai: Tren Daily={ta_data['trend']} | Weekly={ta_data['major_trend']}")
-
-            # 3. News Fetching
-            self.log("🌍 Mengambil Berita Real-Time (Serper)...")
-            news_summary = fetch_stock_news(ta_data['ticker'])
-            self.log("✅ Berita Terkumpul.")
-
-            # 4. AI Analysis
-            self.log("🧠 Melakukan Riset AI (Data + Berita)...")
-            ai_analysis = get_ai_analysis(ta_data['ticker'], ta_data, news_summary)
-            self.log("✅ Riset AI Selesai.")
-
-            # 5. Chart Generation
-            self.log("📈 Membuat Chart Candlestick...")
-            chart_path = generate_chart(ta_data['ticker'], ta_data['df_daily'])
-            if chart_path:
-                self.log(f"✅ Chart disimpan: {os.path.basename(chart_path)}")
-
-            # 6. Format Message
-            final_message = format_message(ta_data['ticker'], ta_data, ai_analysis, news_summary)
+            final_message, chart_path = self.controller.run_analysis(
+                ticker, 
+                progress_callback=self.update_progress
+            )
             
-            # 7. Save to Cache (Note: We don't cache the image path specifically, but it exists on disk)
-            db_manager.save_analysis(ta_data['ticker'], ta_data, ai_analysis, final_message)
-            self.log("💾 Data disimpan ke Database.")
-            
-            # Update UI
+            self.current_chart_path = chart_path
             self.preview_textbox.insert("end", final_message)
             self.send_btn.configure(state="normal")
-            self.log("✨ Laporan & Chart Siap! Silakan review.")
             
-            # Store chart path in instance for sending
-            self.current_chart_path = chart_path
-
         except Exception as e:
-            self.log(f"❌ Error: {str(e)}")
-            messagebox.showerror("Analisa Gagal", str(e))
+            self.log_ui(f"❌ CRITICAL ERROR: {e}")
         finally:
-            self.analyze_btn.configure(state="normal")
+            self.toggle_inputs(True)
+
+    def update_progress(self, val):
+        self.progress_bar.set(val)
+
+    def toggle_inputs(self, enable):
+        state = "normal" if enable else "disabled"
+        self.analyze_btn.configure(state=state)
+        self.send_btn.configure(state="disabled" if not enable else "normal")
 
     def send_whatsapp(self):
         message = self.preview_textbox.get("1.0", "end").strip()
         phone = os.getenv("TARGET_PHONE")
-        # Use chart path if available from this session
-        chart_to_send = getattr(self, 'current_chart_path', None)
         
         if not phone:
-            messagebox.showerror("Konfigurasi Error", "TARGET_PHONE tidak ditemukan di file .env")
+            messagebox.showerror("Error", "Set TARGET_PHONE di .env dulu!")
             return
             
-        self.log(f"📲 Mengirim ke {phone}...")
+        self.log_ui(f"📲 Mengirim ke {phone}...")
         
         def _send():
             try:
-                broadcast_message(phone, message, chart_to_send)
-                self.log("✅ Pesan & Gambar Berhasil Terkirim!")
-                messagebox.showinfo("Sukses", "Pesan terkirim ke WhatsApp!")
+                self.controller.send_whatsapp_message(phone, message, self.current_chart_path)
+                self.log_ui("✅ Terkirim!")
+                messagebox.showinfo("Sukses", "Pesan terkirim!")
             except Exception as e:
-                self.log(f"❌ Gagal mengirim: {e}")
-                messagebox.showerror("Gagal Kirim", str(e))
-
+                self.log_ui(f"❌ Gagal kirim: {e}")
+        
         threading.Thread(target=_send, daemon=True).start()
 
     def copy_to_clipboard(self):
@@ -295,7 +301,12 @@ class StockSignalApp(ctk.CTk):
         if text:
             self.clipboard_clear()
             self.clipboard_append(text)
-            self.log("📋 Teks disalin ke clipboard.")
+            self.log_ui("📋 Copied.")
+
+    def on_closing(self):
+        self.controller.stop_wa_service()
+        self.destroy()
+        sys.exit(0)
 
 if __name__ == "__main__":
     app = StockSignalApp()

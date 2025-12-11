@@ -6,17 +6,19 @@ def get_stock_data(ticker, period="2y", interval="1d"):
     """Fetches stock data from yfinance. Auto-appends .JK if missing and initial fetch fails."""
     print(f"Fetching data for {ticker}...")
     
-    # Try original ticker first
-    # auto_adjust=False ensures we get OHLC data as is (classic TA)
-    # This also silences the yfinance FutureWarning.
-    df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
-    
+    df = pd.DataFrame()
     actual_ticker = ticker
+    
+    # Attempt 1: Try original ticker
+    try:
+        df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
+    except Exception as e:
+        print(f"Attempt 1 failed for {ticker}: {e}")
 
-    # If empty and no suffix, try adding .JK (Indonesia)
+    # Check if data is truly empty or invalid
     if df.empty and "." not in ticker:
         ticker_jk = f"{ticker}.JK"
-        print(f"Data empty for {ticker}. Trying IDX suffix: {ticker_jk}...")
+        print(f"Data empty/failed for {ticker}. Trying IDX suffix: {ticker_jk}...")
         try:
             df = yf.download(ticker_jk, period=period, interval=interval, progress=False, auto_adjust=False)
             if not df.empty:
@@ -25,7 +27,7 @@ def get_stock_data(ticker, period="2y", interval="1d"):
              print(f"Error fetching {ticker_jk}: {e}")
 
     if df.empty:
-        raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK)")
+        raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK). It may be delisted or invalid.")
     
     return df, actual_ticker
 
@@ -41,12 +43,27 @@ def analyze_technical(ticker):
         df.columns = df.columns.get_level_values(0)
 
     # Calculate Indicators
-    # EMA 20, 50, 200
+    # SMA 5, 8, 13 (as per user request)
+    df.ta.sma(length=5, append=True)
+    df.ta.sma(length=8, append=True)
+    df.ta.sma(length=13, append=True)
+
+    # EMA 20, 50, 200 (Keep for trend analysis logic)
     df.ta.ema(length=20, append=True)
     df.ta.ema(length=50, append=True)
     
-    # RSI
+    # RSI (14)
     df.ta.rsi(length=14, append=True)
+    
+    # CCI (20)
+    df.ta.cci(length=20, append=True)
+
+    # MACD (Fast=12, Slow=26, Signal=9)
+    df.ta.macd(fast=12, slow=26, signal=9, append=True)
+
+    # Bollinger Bands (Length=20, Std=2)
+    # Using specific names if known, but relying on dynamic search below is safer
+    df.ta.bbands(length=20, std=2, append=True)
     
     # Get latest values
     latest = df.iloc[-1]
@@ -54,9 +71,47 @@ def analyze_technical(ticker):
     
     price = latest['Close']
     rsi = latest['RSI_14']
+    
+    # Try to find CCI column dynamically to be safe
+    cci_col = next((c for c in df.columns if c.startswith('CCI_')), 'CCI_20_0.015')
+    cci = latest.get(cci_col, 0)
+    
     ema20 = latest['EMA_20']
     ema50 = latest['EMA_50']
     volume = latest['Volume']
+
+    # MACD Values
+    macd = latest['MACD_12_26_9']
+    macd_signal = latest['MACDs_12_26_9']
+    macd_hist = latest['MACDh_12_26_9']
+
+    # Bollinger Bands Dynamic Retrieval
+    # We look for columns starting with BBU, BBL, BBM followed by 20_2.0
+    cols = df.columns.tolist()
+    
+    # Defaults
+    bb_upper = price
+    bb_lower = price
+    bb_mid = price
+    
+    # Find exact column names
+    for c in cols:
+        if c.startswith('BBU_20_2.0'):
+            bb_upper = latest[c]
+        elif c.startswith('BBL_20_2.0'):
+            bb_lower = latest[c]
+        elif c.startswith('BBM_20_2.0'):
+            bb_mid = latest[c]
+
+    # Handle Chart Generator Column Names
+    # If pandas_ta generated BBU_20_2.0_2.0, we must ensure chart_generator knows about it
+    # We will rename them to standard names if needed, or chart generator should also check dynamically.
+    # For simplicity, let's alias them in the dataframe for the chart generator.
+    for c in cols:
+        if c.startswith('BBU_20_2.0'):
+            df['BBU_20_2.0'] = df[c]
+        elif c.startswith('BBL_20_2.0'):
+            df['BBL_20_2.0'] = df[c]
     
     # --- VOLUME ANALYSIS ---
     avg_vol_20 = df['Volume'].tail(20).mean()
@@ -104,6 +159,20 @@ def analyze_technical(ticker):
     elif price < ema20 < ema50:
         trend = "Bearish (Turun)"
     
+    # MACD Trend
+    macd_status = "Netral"
+    if macd > macd_signal:
+        macd_status = "Golden Cross (Bullish)" if macd < 0 else "Bullish Momentum"
+    elif macd < macd_signal:
+        macd_status = "Dead Cross (Bearish)" if macd > 0 else "Bearish Momentum"
+
+    # BB Position
+    bb_status = "Dalam Range"
+    if price >= bb_upper:
+        bb_status = "Overbought (Atas BB)"
+    elif price <= bb_lower:
+        bb_status = "Oversold (Bawah BB)"
+
     # --- MAJOR TREND (WEEKLY) ---
     # Resample to weekly to avoid extra API call
     try:
@@ -171,6 +240,29 @@ def analyze_technical(ticker):
     stop_loss = price * 0.95
     target = price + (price - stop_loss) * 1.5
     
+    # --- FIBONACCI RETRACEMENT (Auto-Swing High/Low last 120 days) ---
+    # We use a 6-month lookback for significant levels
+    lookback = 120
+    if len(df) > lookback:
+        fib_slice = df.tail(lookback)
+    else:
+        fib_slice = df
+        
+    fib_high = fib_slice['High'].max()
+    fib_low = fib_slice['Low'].min()
+    fib_diff = fib_high - fib_low
+    
+    # Calculate Levels
+    fib_levels = {
+        0.0: fib_low,
+        0.236: fib_low + (0.236 * fib_diff),
+        0.382: fib_low + (0.382 * fib_diff),
+        0.5: fib_low + (0.5 * fib_diff),
+        0.618: fib_low + (0.618 * fib_diff),
+        0.786: fib_low + (0.786 * fib_diff),
+        1.0: fib_high
+    }
+
     return {
         "ticker": actual_ticker,
         "df_daily": df, # Added for Chart Generation
@@ -178,6 +270,8 @@ def analyze_technical(ticker):
         "trend": trend,
         "major_trend": major_trend, # Added for Agent & UI
         "rsi": rsi,
+        "cci": cci,
+        "fib_levels": fib_levels, # Pass to chart generator
         "volume": volume,
         "avg_volume": avg_vol_20,
         "vol_status": vol_status,
@@ -188,6 +282,13 @@ def analyze_technical(ticker):
         "support": recent_low,
         "resistance": recent_high,
         "ema20": ema20,
+        "macd": macd,
+        "macd_signal": macd_signal,
+        "macd_hist": macd_hist,
+        "macd_status": macd_status,
+        "bb_upper": bb_upper,
+        "bb_lower": bb_lower,
+        "bb_status": bb_status,
         "stop_loss": stop_loss,
         "target": target
     }

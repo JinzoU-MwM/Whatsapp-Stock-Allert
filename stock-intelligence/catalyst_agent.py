@@ -32,6 +32,8 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         - Harga Terakhir: {ta_data['price']:.0f}
         - Tren Utama: {ta_data['trend']}
         - Tren Weekly: {ta_data.get('major_trend', 'N/A')}
+        - MACD (Momentum): {ta_data['macd_status']} (Hist: {ta_data['macd_hist']:.2f})
+        - Bollinger Bands: {ta_data['bb_status']}
         - RSI (Momentum): {ta_data['rsi']:.2f}
         - Volume Status: {ta_data['vol_status']} ({ta_data['vol_ratio']:.2f}x avg)
         - SMART MONEY FLOW (Vol Proxy): {ta_data['bandar_status']} ({ta_data['bandar_action']})
@@ -50,8 +52,8 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
            - Apakah ada berita tentang Asing/Bandar melakukan Net Buy/Sell? Jelaskan.
            - Apakah berita mendukung pergerakan harga?
            
-        2. ANALISA TEKNIKAL & VOLUME FLOW: 
-           - Jelaskan kekuatan tren dan Volume Flow (Akumulasi/Distribusi).
+        2. ANALISA TEKNIKAL (MACD, BB, VOLUME): 
+           - Jelaskan kondisi Tren, Momentum (MACD), dan Volatilitas (Bollinger Bands).
            - Apakah volume mendukung pergerakan harga?
            
         3. KESIMPULAN & STRATEGI: 
