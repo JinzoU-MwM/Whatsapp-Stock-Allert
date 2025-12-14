@@ -4,52 +4,66 @@ class Sidebar(ctk.CTkFrame):
     def __init__(self, parent, controller, app):
         super().__init__(parent, width=220, corner_radius=0)
         self.controller = controller
-        self.app = app # Reference to main app to switch views
-        self.grid_rowconfigure(8, weight=1) # Spacer push to bottom
+        self.app = app
+        
+        # Grid Configuration
+        self.grid_rowconfigure(20, weight=1) # Spacer at bottom to push logout down
+        self.grid_columnconfigure(0, weight=1)
 
         self.setup_ui()
         self.update_lists()
 
     def setup_ui(self):
-        # Logo / Title
+        # 1. Logo / Title
         self.logo_label = ctk.CTkLabel(self, text="STOCK\nINTELLIGENCE", font=ctk.CTkFont(size=22, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 10))
 
-        # NAVIGATION
+        # 2. Navigation Menu
         self.nav_label = ctk.CTkLabel(self, text="MENU", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.nav_label.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
 
-        self.btn_nav_market = ctk.CTkButton(self, text="📊 MARKET DATA", fg_color="#1F6AA5", command=self.app.show_market_view)
+        # Market Data Button (Active by default)
+        self.btn_nav_market = ctk.CTkButton(self, text="📊 MARKET DATA", 
+                                          fg_color="#1F6AA5", hover_color="#144870",
+                                          anchor="w", width=180,
+                                          command=self.app.show_market_view)
         self.btn_nav_market.grid(row=2, column=0, padx=20, pady=5)
 
-        self.btn_nav_portfolio = ctk.CTkButton(self, text="💼 PORTFOLIO", fg_color="transparent", border_width=1, text_color="gray", command=self.app.show_portfolio_view)
+        # Portfolio Button (Inactive by default)
+        self.btn_nav_portfolio = ctk.CTkButton(self, text="💼 PORTFOLIO", 
+                                             fg_color="transparent", hover_color="#333", border_width=1, border_color="gray", text_color="gray",
+                                             anchor="w", width=180,
+                                             command=self.app.show_portfolio_view)
         self.btn_nav_portfolio.grid(row=3, column=0, padx=20, pady=5)
 
-        # Status
+        # 3. Status
         self.status_label = ctk.CTkLabel(self, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=11))
         self.status_label.grid(row=4, column=0, padx=20, pady=(20, 5))
         
-        # QR Button
-        self.qr_btn = ctk.CTkButton(self, text="LINK WHATSAPP", command=self.app.show_qr_modal, fg_color="#333", border_width=1, border_color="gray")
+        # 4. QR Button (Hidden by default or shown if needed)
+        self.qr_btn = ctk.CTkButton(self, text="LINK WHATSAPP", command=self.app.show_qr_modal, 
+                                  fg_color="#333", border_width=1, border_color="gray", width=180)
         self.qr_btn.grid(row=5, column=0, padx=20, pady=10)
         
-        # Favorites Section
+        # 5. Favorites Section
         self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.fav_label.grid(row=6, column=0, padx=20, pady=(20, 5), sticky="w")
 
         self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=180, fg_color="transparent")
         self.fav_frame.grid(row=7, column=0, padx=10, pady=5)
         
-        # History Section
+        # 6. History Section
         self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.hist_label.grid(row=8, column=0, padx=20, pady=(20, 5), sticky="w")
         
         self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=150, fg_color="transparent")
         self.hist_frame.grid(row=9, column=0, padx=10, pady=5)
         
-        # Logout Button (Bottom)
-        self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000")
-        self.logout_btn.grid(row=10, column=0, padx=20, pady=20)
+        # 20. Logout Button (Sticky Bottom)
+        self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, 
+                                      fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000",
+                                      width=180, height=35)
+        self.logout_btn.grid(row=21, column=0, padx=20, pady=20, sticky="s")
         self.logout_btn.grid_remove() # Hidden initially
 
     def update_lists(self):
@@ -94,8 +108,7 @@ class Sidebar(ctk.CTkFrame):
         self.controller.remove_favorite(ticker)
         self.update_lists()
         # If current view is market, update button state there too?
-        # Ideally via callback or event.
-        if hasattr(self.app, "market_view"):
+        if hasattr(self.app, "market_view") and hasattr(self.app.market_view, "update_favorite_btn_state"):
              self.app.market_view.update_favorite_btn_state()
 
     def update_status(self, text, color):

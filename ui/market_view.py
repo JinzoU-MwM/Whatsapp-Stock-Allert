@@ -58,22 +58,35 @@ class MarketView(ctk.CTkFrame):
         self.progress_bar.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
         self.progress_bar.set(0)
 
-        # --- 2. OUTPUT AREA (Tabs) ---
-        self.output_tabview = ctk.CTkTabview(self, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333", segmented_button_selected_color="#1F6AA5")
-        self.output_tabview.grid(row=1, column=0, sticky="nsew")
+        # --- 2. OUTPUT AREA (Frame Switching) ---
         
-        # Create Tabs
-        self.tab_preview = self.output_tabview.add("📊 REPORT PREVIEW")
-        self.tab_logs = self.output_tabview.add("🤖 SYSTEM LOGS")
-        self.tab_info = self.output_tabview.add("ℹ️ INFO")
+        # Output Container
+        self.output_container = ctk.CTkFrame(self, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
+        self.output_container.grid(row=1, column=0, sticky="nsew")
+        self.output_container.grid_rowconfigure(1, weight=1)
+        self.output_container.grid_columnconfigure(0, weight=1)
 
-        # --- TAB 1: PREVIEW LAYOUT ---
-        self.tab_preview.grid_columnconfigure(0, weight=1)
-        self.tab_preview.grid_rowconfigure(1, weight=1)
-        
-        # Row 0: Sentiment Header
-        self.sent_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
-        self.sent_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        # 2a. Tab Selector (Segmented Button - Top Left)
+        self.tab_var = ctk.StringVar(value="REPORT PREVIEW")
+        self.tab_selector = ctk.CTkSegmentedButton(self.output_container, 
+                                                 values=["REPORT PREVIEW", "SYSTEM LOGS", "INFO"],
+                                                 command=self.switch_tab,
+                                                 variable=self.tab_var,
+                                                 selected_color="#2CC985", selected_hover_color="#25A96E", # Emerald Green
+                                                 text_color="white", # Default Text
+                                                 font=("Arial", 12, "bold"))
+        # Hack to change text color of selected button if library supports it, otherwise default contrast applies
+        self.tab_selector.grid(row=0, column=0, sticky="w", padx=20, pady=(15, 10))
+
+        # 2b. Frame: PREVIEW
+        self.frame_preview = ctk.CTkFrame(self.output_container, fg_color="transparent")
+        self.frame_preview.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self.frame_preview.grid_columnconfigure(0, weight=1)
+        self.frame_preview.grid_rowconfigure(1, weight=1) # Content expands
+
+        # Row 0: Sentiment Header (Inside Preview)
+        self.sent_frame = ctk.CTkFrame(self.frame_preview, fg_color="transparent")
+        self.sent_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(0, 10))
         
         ctk.CTkLabel(self.sent_frame, text="CONFIDENCE SCORE", font=("Arial", 12, "bold"), text_color="gray").pack(anchor="w")
         
@@ -88,8 +101,8 @@ class MarketView(ctk.CTkFrame):
         self.sentiment_bar.set(0)
 
         # Row 1: Content Area
-        self.content_area = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
-        self.content_area.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self.content_area = ctk.CTkFrame(self.frame_preview, fg_color="transparent")
+        self.content_area.grid(row=1, column=0, sticky="nsew")
         self.content_area.grid_rowconfigure(0, weight=1)
         self.content_area.grid_columnconfigure(0, weight=1)
 
@@ -107,8 +120,8 @@ class MarketView(ctk.CTkFrame):
         self.preview_textbox = ctk.CTkTextbox(self.content_area, font=("Consolas", 13), fg_color="#111", text_color="#ddd", corner_radius=5)
 
         # Row 2: Action Buttons
-        self.action_button_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent", height=50)
-        self.action_button_frame.grid(row=2, column=0, sticky="e", padx=20, pady=(5, 15))
+        self.action_button_frame = ctk.CTkFrame(self.frame_preview, fg_color="transparent", height=50)
+        self.action_button_frame.grid(row=2, column=0, sticky="e", padx=10, pady=(5, 10))
         
         self.copy_btn = ctk.CTkButton(self.action_button_frame, text="Copy Text 📋", height=35, width=120, 
                                     fg_color="#444", hover_color="#555", 
@@ -120,20 +133,42 @@ class MarketView(ctk.CTkFrame):
                                     command=self.send_whatsapp, state="disabled")
         self.send_btn.pack(side="left")
 
-        # --- TAB 2: LOGS ---
-        self.tab_logs.grid_columnconfigure(0, weight=1)
-        self.tab_logs.grid_rowconfigure(0, weight=1)
+        # 2c. Frame: LOGS
+        self.frame_logs = ctk.CTkFrame(self.output_container, fg_color="transparent")
+        self.frame_logs.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self.frame_logs.grid_columnconfigure(0, weight=1)
+        self.frame_logs.grid_rowconfigure(0, weight=1)
         
-        self.console_textbox = ctk.CTkTextbox(self.tab_logs, font=("Consolas", 11), fg_color="#000", text_color="#0f0", corner_radius=5)
-        self.console_textbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.console_textbox = ctk.CTkTextbox(self.frame_logs, font=("Consolas", 11), fg_color="#000", text_color="#0f0", corner_radius=5)
+        self.console_textbox.grid(row=0, column=0, sticky="nsew")
         self.console_textbox.configure(state="disabled")
 
-        # --- TAB 3: INFO ---
-        ctk.CTkLabel(self.tab_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).pack(pady=20)
-        self.group_btn = ctk.CTkButton(self.tab_info, text="Scan WhatsApp Group IDs", command=self.fetch_groups)
+        # 2d. Frame: INFO
+        self.frame_info = ctk.CTkFrame(self.output_container, fg_color="transparent")
+        self.frame_info.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        
+        ctk.CTkLabel(self.frame_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).pack(pady=20)
+        self.group_btn = ctk.CTkButton(self.frame_info, text="Scan WhatsApp Group IDs", command=self.fetch_groups)
         self.group_btn.pack()
 
+        # Initialize View State
+        self.switch_tab("REPORT PREVIEW")
+
     # --- LOGIC ---
+
+    def switch_tab(self, value):
+        # Hide all frames
+        self.frame_preview.grid_remove()
+        self.frame_logs.grid_remove()
+        self.frame_info.grid_remove()
+        
+        # Show selected
+        if value == "REPORT PREVIEW":
+            self.frame_preview.grid()
+        elif value == "SYSTEM LOGS":
+            self.frame_logs.grid()
+        elif value == "INFO":
+            self.frame_info.grid()
 
     def log_message(self, message):
         """Called by Controller to log text"""
@@ -154,7 +189,11 @@ class MarketView(ctk.CTkFrame):
 
         self.toggle_inputs(False)
         self.progress_bar.set(0)
-        self.output_tabview.set("🤖 SYSTEM LOGS")
+        
+        # Auto-switch to logs
+        self.tab_selector.set("SYSTEM LOGS")
+        self.switch_tab("SYSTEM LOGS")
+        
         self.console_textbox.configure(state="normal")
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
@@ -184,22 +223,22 @@ class MarketView(ctk.CTkFrame):
             self.preview_textbox.grid(row=0, column=0, sticky="nsew")
             self.preview_textbox.insert("end", final_message)
             
-            self.output_tabview.set("📊 REPORT PREVIEW")
+            # Auto-switch back to preview
+            self.tab_selector.set("REPORT PREVIEW")
+            self.switch_tab("REPORT PREVIEW")
+            
             self.update_sentiment_ui(sentiment_score)
             self.send_btn.configure(state="normal")
             
-            # Request Sidebar Update via Controller (Sidebar listens to DB changes effectively by reload)
-            # Ideally we callback to main app to refresh sidebar.
-            # But controller methods update DB. Sidebar needs to refresh.
-            # We can use a custom event or callback. For now, assume user refreshes manually or we link it later.
-            # In the original monolithic app, we called self.update_sidebar_lists().
-            # Here we can call self.master.master... or pass a callback.
+            # Request Sidebar Update
             if hasattr(self.master.master, "sidebar"):
                  self.master.master.sidebar.update_lists()
             
         except Exception as e:
             self.log_message(f"❌ CRITICAL ERROR: {e}")
-            self.output_tabview.set("🤖 SYSTEM LOGS")
+            # Ensure we stay on logs if error
+            self.tab_selector.set("SYSTEM LOGS")
+            self.switch_tab("SYSTEM LOGS")
         finally:
             self.toggle_inputs(True)
 
