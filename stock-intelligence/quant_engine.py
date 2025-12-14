@@ -118,6 +118,10 @@ class QuantAnalyzer:
         top3_buy_vol = buys.head(3)['Volume'].sum()
         top3_sell_vol = sells.head(3)['Volume'].sum()
         
+        # Get Top 3 Broker Codes
+        top3_buyers = buys.head(3).index.tolist()
+        top3_sellers = sells.head(3).index.tolist()
+        
         top1_buyer = buys.index[0] if not buys.empty else "N/A"
         top1_seller = sells.index[0] if not sells.empty else "N/A"
 
@@ -154,14 +158,20 @@ class QuantAnalyzer:
         avg_sell_price = sells.head(3)['AvgPrice'].mean()
         avg_price_diff = avg_buy_price - avg_sell_price
         
+        # Format Top 3 string
+        top3_buyers_str = ",".join(top3_buyers)
+        
+        narrative = f"{status}. Buyer Dominan: {top3_buyers_str}."
+        
         return {
             "status": status,
             "bandar_score": score,
             "top_buyer": top1_buyer,
+            "top3_buyers": top3_buyers, # Pass list for more detail if needed
             "buyer_type": buyer_type,
             "net_vol_ratio": net_vol_ratio,
             "avg_price_diff": avg_price_diff,
-            "summary": f"{status}. Buyer Utama: {top1_buyer} ({buyer_type})."
+            "summary": narrative
         }
 
     def analyze_foreign_flow(self, foreign_data):

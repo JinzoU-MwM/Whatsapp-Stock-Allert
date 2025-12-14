@@ -47,6 +47,7 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 • *Volume Flow:* {ta_data['bandar_status']}
 • *Foreign Flow:* {ta_data.get('foreign_status', 'N/A')}
 • *Indikasi:* {ta_data['bandar_action']}
+• *Detail Bandar:* {ta_data.get('bandar_summary', '-')}
 • *MFI (Money Flow):* {ta_data.get('mfi', 50):.2f}
 • *Holder Utama:* {ta_data.get('major_holders', 'N/A')}
 • *Harga:* {ta_data['price']:.0f}
@@ -124,6 +125,7 @@ def main():
                 if bs_data.get('status') != "Neutral":
                     ta_data['bandar_status'] = bs_data['status']
                     ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
+                    ta_data['bandar_summary'] = bs_data.get('summary', '-') # Narrative details
                 
                 # Update Verdict
                 tech_score = 50 
