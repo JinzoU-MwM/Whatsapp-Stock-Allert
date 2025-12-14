@@ -11,6 +11,7 @@ from PIL import Image
 from ui.sidebar import Sidebar
 from ui.market_view import MarketView
 from ui.portfolio_view import PortfolioView
+from ui.settings_view import SettingsView
 
 # Import Controller
 # Assuming this file is run from root via desktop_app.py which sets sys.path
@@ -53,6 +54,7 @@ class StockSignalApp(ctk.CTk):
         # Views
         self.market_view = MarketView(self.main_container, self.controller)
         self.portfolio_view = PortfolioView(self.main_container, self.controller)
+        self.settings_view = SettingsView(self.main_container, self.controller)
         
         # Default View
         self.show_market_view()
@@ -81,18 +83,32 @@ class StockSignalApp(ctk.CTk):
     def show_market_view(self):
         self.sidebar.btn_nav_market.configure(fg_color="#1F6AA5", text_color="white")
         self.sidebar.btn_nav_portfolio.configure(fg_color="transparent", text_color="gray")
+        self.sidebar.btn_nav_settings.configure(fg_color="transparent", text_color="gray")
         
         self.portfolio_view.grid_forget()
+        self.settings_view.grid_forget()
         self.market_view.grid(row=0, column=0, sticky="nsew")
 
     def show_portfolio_view(self):
         self.sidebar.btn_nav_market.configure(fg_color="transparent", text_color="gray")
         self.sidebar.btn_nav_portfolio.configure(fg_color="#1F6AA5", text_color="white")
+        self.sidebar.btn_nav_settings.configure(fg_color="transparent", text_color="gray")
         
         self.market_view.grid_forget()
+        self.settings_view.grid_forget()
         self.portfolio_view.grid(row=0, column=0, sticky="nsew")
         
         self.portfolio_view.refresh_portfolio_table()
+
+    def show_settings_view(self):
+        self.sidebar.btn_nav_market.configure(fg_color="transparent", text_color="gray")
+        self.sidebar.btn_nav_portfolio.configure(fg_color="transparent", text_color="gray")
+        self.sidebar.btn_nav_settings.configure(fg_color="#1F6AA5", text_color="white")
+        
+        self.market_view.grid_forget()
+        self.portfolio_view.grid_forget()
+        self.settings_view.grid(row=0, column=0, sticky="nsew")
+        self.settings_view.load_data() # Refresh data
 
     def load_ticker(self, ticker):
         self.show_market_view()

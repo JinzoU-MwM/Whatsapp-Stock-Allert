@@ -346,3 +346,80 @@ class StockAppController:
             
         return portfolio
 
+    # --- SETTINGS / CONFIG ---
+    def get_config(self):
+        """Reads current environment variables useful for UI."""
+        return {
+            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
+            "SERPER_API_KEY": os.getenv("SERPER_API_KEY", ""),
+            "GOAPI_API_KEY": os.getenv("GOAPI_API_KEY", ""),
+            "TARGET_PHONE": os.getenv("TARGET_PHONE", "")
+        }
+
+    def save_config(self, config_dict):
+        """Writes configuration to .env file and updates current environment."""
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        
+        try:
+            # 1. Read existing lines to preserve comments if possible, or just overwrite simple
+            # For simplicity and robustness, we'll read, update known keys, and write back.
+            
+            lines = []
+            if os.path.exists(env_path):
+                with open(env_path, "r") as f:
+                    lines = f.readlines()
+            
+            # Map of keys to update
+            keys_to_update = {
+                "GOOGLE_API_KEY": config_dict.get("GOOGLE_API_KEY"),
+                "SERPER_API_KEY": config_dict.get("SERPER_API_KEY"),
+                "GOAPI_API_KEY": config_dict.get("GOAPI_API_KEY"),
+                "TARGET_PHONE": config_dict.get("TARGET_PHONE")
+            }
+            
+            new_lines = []
+            processed_keys = set()
+            
+            for line in lines:
+                key_match = None
+                for key in keys_to_update:
+                    if line.startswith(f"{key}="):
+                        key_match = key
+                        break
+                
+                if key_match:
+                    val = keys_to_update[key_match]
+                    if val is not None:
+                        new_lines.append(f"{key_match}={val}\n")
+                        processed_keys.add(key_match)
+                    else:
+                        new_lines.append(line) # Keep as is if None passed
+                else:
+                    new_lines.append(line)
+            
+            # Append missing keys
+            for key, val in keys_to_update.items():
+                if key not in processed_keys and val is not None:
+                    if new_lines and not new_lines[-1].endswith("\n"):
+                        new_lines.append("\n")
+                    new_lines.append(f"{key}={val}\n")
+            
+            # Write back
+            with open(env_path, "w") as f:
+                f.writelines(new_lines)
+                
+            # Update current process env
+            for key, val in keys_to_update.items():
+                if val:
+                    os.environ[key] = val
+            
+            # Reload dotenv to be sure
+            load_dotenv(override=True)
+            
+            self.log("✅ Configuration saved to .env")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Failed to save config: {e}")
+            return False
+
