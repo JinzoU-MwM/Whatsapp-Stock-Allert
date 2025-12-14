@@ -106,7 +106,7 @@ def generate_chart(ticker, df):
             df_slice,
             type='candle',
             style=s,
-            title=f"\n{ticker} Professional Chart",
+            title=f"{ticker} Professional Chart",
             ylabel='Price',
             ylabel_lower='Volume',
             volume=True,
