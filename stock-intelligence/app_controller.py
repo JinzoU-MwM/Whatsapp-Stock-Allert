@@ -267,3 +267,82 @@ class StockAppController:
     def is_favorite(self, ticker):
         return db_manager.is_favorite(ticker)
 
+    # --- PORTFOLIO MANAGEMENT ---
+    def get_portfolio(self):
+        return db_manager.get_portfolio()
+
+    def add_portfolio_item(self, ticker, price, lots):
+        if db_manager.add_portfolio(ticker, price, lots):
+            self.log(f"💼 Portfolio Updated: {ticker} (Avg: {price}, Lots: {lots})")
+            return True
+        return False
+
+    def remove_portfolio_item(self, ticker):
+        if db_manager.delete_portfolio(ticker):
+            self.log(f"🗑️ Removed {ticker} from Portfolio.")
+            return True
+        return False
+
+    def get_portfolio_summary(self):
+        """Returns portfolio list with added Real-Time P/L data."""
+        portfolio = self.get_portfolio()
+        if not portfolio:
+            return []
+
+        self.log("💼 Calculating Portfolio Performance...")
+        import yfinance as yf
+        
+        # Prepare Tickers for Bulk Fetch (Add .JK)
+        yf_tickers = [p['ticker'] + ".JK" for p in portfolio]
+        if not yf_tickers:
+            return portfolio
+
+        try:
+            # Efficient Bulk Fetch
+            tickers_str = " ".join(yf_tickers)
+            # Use '1d' history to get the absolute latest close
+            data = yf.download(tickers_str, period="1d", progress=False)['Close']
+            
+            # Handle single ticker result (Series) vs multiple (DataFrame)
+            is_series = len(yf_tickers) == 1
+            
+            for item in portfolio:
+                sym = item['ticker'] + ".JK"
+                current_price = 0
+                
+                try:
+                    if is_series:
+                        if not data.empty:
+                            current_price = float(data.iloc[-1])
+                    else:
+                        if sym in data.columns:
+                            # access last row for that symbol
+                            val = data[sym].iloc[-1]
+                            current_price = float(val)
+                except Exception as e:
+                    self.log(f"⚠️ Price fetch error for {sym}: {e}")
+
+                # Calculations
+                # 1 Lot = 100 Shares (Standard IDX)
+                item['current_price'] = current_price
+                
+                if current_price > 0:
+                    initial_investment = item['avg_price'] * item['lots'] * 100
+                    current_market_val = current_price * item['lots'] * 100
+                    
+                    pl_value = current_market_val - initial_investment
+                    pl_pct = (pl_value / initial_investment) * 100 if initial_investment != 0 else 0
+                    
+                    item['market_value'] = current_market_val
+                    item['pl_value'] = pl_value
+                    item['pl_pct'] = pl_pct
+                else:
+                    item['market_value'] = 0
+                    item['pl_value'] = 0
+                    item['pl_pct'] = 0
+
+        except Exception as e:
+            self.log(f"❌ Portfolio Analysis Error: {e}")
+            
+        return portfolio
+

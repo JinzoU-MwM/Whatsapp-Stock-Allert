@@ -42,6 +42,16 @@ def init_db():
         )
     ''')
     
+    # Portfolio Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS portfolio (
+            ticker TEXT PRIMARY KEY,
+            avg_price REAL,
+            lots INTEGER,
+            date_added DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -152,3 +162,48 @@ def get_history(limit=10):
     rows = cursor.fetchall()
     conn.close()
     return [row['ticker'] for row in rows]
+
+# --- PORTFOLIO ---
+def add_portfolio(ticker, avg_price, lots):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO portfolio (ticker, avg_price, lots)
+            VALUES (?, ?, ?)
+        ''', (ticker.upper(), avg_price, lots))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding to portfolio: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_portfolio():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM portfolio ORDER BY ticker")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    portfolio = []
+    for row in rows:
+        portfolio.append({
+            "ticker": row["ticker"],
+            "avg_price": row["avg_price"],
+            "lots": row["lots"]
+        })
+    return portfolio
+
+def delete_portfolio(ticker):
+    conn = get_db_connection()
+    try:
+        conn.execute("DELETE FROM portfolio WHERE ticker = ?", (ticker.upper(),))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error deleting from portfolio: {e}")
+        return False
+    finally:
+        conn.close()

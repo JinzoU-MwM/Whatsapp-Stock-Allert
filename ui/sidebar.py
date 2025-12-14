@@ -1,0 +1,89 @@
+import customtkinter as ctk
+
+class Sidebar(ctk.CTkFrame):
+    def __init__(self, parent, controller, app):
+        super().__init__(parent, width=220, corner_radius=0)
+        self.controller = controller
+        self.app = app # Reference to main app to switch views
+        self.grid_rowconfigure(8, weight=1) # Spacer push to bottom
+
+        self.setup_ui()
+        self.update_lists()
+
+    def setup_ui(self):
+        # Logo / Title
+        self.logo_label = ctk.CTkLabel(self, text="STOCK\nINTELLIGENCE", font=ctk.CTkFont(size=22, weight="bold"))
+        self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 10))
+
+        # NAVIGATION
+        self.nav_label = ctk.CTkLabel(self, text="MENU", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
+        self.nav_label.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
+
+        self.btn_nav_market = ctk.CTkButton(self, text="📊 MARKET DATA", fg_color="#1F6AA5", command=self.app.show_market_view)
+        self.btn_nav_market.grid(row=2, column=0, padx=20, pady=5)
+
+        self.btn_nav_portfolio = ctk.CTkButton(self, text="💼 PORTFOLIO", fg_color="transparent", border_width=1, text_color="gray", command=self.app.show_portfolio_view)
+        self.btn_nav_portfolio.grid(row=3, column=0, padx=20, pady=5)
+
+        # Status
+        self.status_label = ctk.CTkLabel(self, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=11))
+        self.status_label.grid(row=4, column=0, padx=20, pady=(20, 5))
+        
+        # QR Button
+        self.qr_btn = ctk.CTkButton(self, text="LINK WHATSAPP", command=self.app.show_qr_modal, fg_color="#333", border_width=1, border_color="gray")
+        self.qr_btn.grid(row=5, column=0, padx=20, pady=10)
+        
+        # Favorites Section
+        self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
+        self.fav_label.grid(row=6, column=0, padx=20, pady=(20, 5), sticky="w")
+
+        self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=180, fg_color="transparent")
+        self.fav_frame.grid(row=7, column=0, padx=10, pady=5)
+        
+        # Logout Button (Bottom)
+        self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000")
+        self.logout_btn.grid(row=9, column=0, padx=20, pady=20)
+        self.logout_btn.grid_remove() # Hidden initially
+
+    def update_lists(self):
+        # Refresh Favorites
+        for widget in self.fav_frame.winfo_children():
+            widget.destroy()
+            
+        favorites = self.controller.get_favorites()
+        if not favorites:
+            ctk.CTkLabel(self.fav_frame, text="No Favorites", text_color="gray", font=("Arial", 10)).pack()
+        else:
+            for ticker in favorites:
+                row = ctk.CTkFrame(self.fav_frame, fg_color="transparent")
+                row.pack(fill="x", pady=2)
+                
+                # Load Ticker on Click
+                btn = ctk.CTkButton(row, text=f"★ {ticker}", width=120, height=28, anchor="w", fg_color="transparent", hover_color="#333",
+                                  font=ctk.CTkFont(size=12),
+                                  command=lambda t=ticker: self.app.load_ticker(t))
+                btn.pack(side="left", padx=2)
+                
+                # Delete Button
+                del_btn = ctk.CTkButton(row, text="×", width=25, height=25, fg_color="transparent", hover_color="#500", text_color="gray",
+                                      command=lambda t=ticker: self.remove_favorite(t))
+                del_btn.pack(side="right", padx=2)
+
+    def remove_favorite(self, ticker):
+        self.controller.remove_favorite(ticker)
+        self.update_lists()
+        # If current view is market, update button state there too?
+        # Ideally via callback or event.
+        if hasattr(self.app, "market_view"):
+             self.app.market_view.update_favorite_btn_state()
+
+    def update_status(self, text, color):
+        self.status_label.configure(text=text, text_color=color)
+
+    def show_qr_btn(self, show=True):
+        if show:
+            self.qr_btn.grid()
+            self.logout_btn.grid_remove()
+        else:
+            self.qr_btn.grid_remove()
+            self.logout_btn.grid()
