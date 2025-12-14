@@ -384,7 +384,8 @@ class StockAppController:
             "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY", ""),
             "SERPER_API_KEY": os.getenv("SERPER_API_KEY", ""),
             "GOAPI_API_KEY": os.getenv("GOAPI_API_KEY", ""),
-            "TARGET_PHONE": os.getenv("TARGET_PHONE", "")
+            "TARGET_PHONE": os.getenv("TARGET_PHONE", ""),
+            "AI_MODEL": os.getenv("AI_MODEL", "gemini-2.0-flash-exp") # Default to fast free model
         }
 
     def save_config(self, config_dict):
@@ -405,7 +406,8 @@ class StockAppController:
                 "GOOGLE_API_KEY": config_dict.get("GOOGLE_API_KEY"),
                 "SERPER_API_KEY": config_dict.get("SERPER_API_KEY"),
                 "GOAPI_API_KEY": config_dict.get("GOAPI_API_KEY"),
-                "TARGET_PHONE": config_dict.get("TARGET_PHONE")
+                "TARGET_PHONE": config_dict.get("TARGET_PHONE"),
+                "AI_MODEL": config_dict.get("AI_MODEL")
             }
             
             new_lines = []

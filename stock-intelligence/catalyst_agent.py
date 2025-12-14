@@ -20,8 +20,11 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
     print(f"Analyzing technical data for {ticker}...")
     
     try:
-        # Using Gemini 2.0 Flash Exp (Smart & Fast) for reasoning
-        model = genai.GenerativeModel('gemini-2.0-flash-exp') 
+        # Get configured model from env, default to flash-exp
+        model_name = os.getenv("AI_MODEL", "gemini-2.0-flash-exp")
+        print(f"🤖 Using AI Model: {model_name}")
+        
+        model = genai.GenerativeModel(model_name) 
         
         # Construct Analysis Prompt
         prompt = f"""
