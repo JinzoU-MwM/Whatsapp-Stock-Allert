@@ -27,29 +27,40 @@ class StockAppController:
         db_manager.init_db()
 
     def log(self, message):
-        if self.log_callback:
-            self.log_callback(message)
-        else:
-            try:
-                print(message)
-            except:
-                pass
+        # Suppress logging in production unless it's a critical error or analysis step
+        if self.log_callback and (message.startswith("✅") or message.startswith("❌") or message.startswith("📊") or message.startswith("🧠") or message.startswith("🌍")):
+             self.log_callback(message)
+        # Always log to console/file if needed for debugging, or comment out for cleaner production
+        # else:
+        #     try:
+        #         print(message)
+        #     except:
+        #         pass
 
     def start_wa_service(self):
-        """Starts Node.js service. Hides window for cleaner UX."""
+        """Starts Node.js service. Hides window for cleaner UX but logs to file."""
         try:
             service_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "whatsapp-service")
+            log_path = os.path.join(service_path, "service_debug.log")
             
             # Use CREATE_NO_WINDOW to hide the console completely
-            # We will rely on the embedded QR code in the UI instead
             creation_flags = subprocess.CREATE_NO_WINDOW
             
-            self.log("🚀 Memulai Layanan WhatsApp (Background)...")
+            self.log(f"🚀 Memulai Layanan WhatsApp (Log: {log_path})...")
+            
+            # Open log file
+            self.log_file = open(log_path, "w")
+            
+            # Use node directly instead of npm for better process control
+            cmd = "node index.js"
+            
             self.wa_process = subprocess.Popen(
-                "npm start", 
+                cmd, 
                 cwd=service_path,
                 shell=True,
-                creationflags=creation_flags
+                creationflags=creation_flags,
+                stdout=self.log_file,
+                stderr=self.log_file
             )
         except Exception as e:
             self.log(f"❌ Gagal memulai Layanan WhatsApp: {e}")
@@ -59,10 +70,13 @@ class StockAppController:
             try:
                 subprocess.run(f"taskkill /F /T /PID {self.wa_process.pid}", shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
             except Exception as e:
-                try:
-                    print(f"Error killing service: {e}")
-                except:
-                    pass
+                pass
+        
+        if hasattr(self, 'log_file') and self.log_file:
+            try:
+                self.log_file.close()
+            except:
+                pass
 
     def check_service_health(self):
         try:
@@ -82,6 +96,19 @@ class StockAppController:
         except:
             return None
 
+    def logout_whatsapp(self):
+        try:
+            response = requests.post(f"{self.service_url}/logout", timeout=5)
+            if response.status_code == 200:
+                self.log("✅ Berhasil Logout WhatsApp.")
+                return True
+            else:
+                self.log(f"⚠️ Gagal Logout: {response.text}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Error during logout: {e}")
+            return False
+
     def fetch_groups(self):
         try:
             response = requests.get(f"{self.service_url}/groups", timeout=10)
@@ -93,35 +120,33 @@ class StockAppController:
             self.log(f"Error fetching groups: {e}")
             return []
 
-    def run_analysis(self, ticker, progress_callback=None):
+    def run_analysis(self, ticker, timeframe="daily", progress_callback=None):
         """
         Orchestrates the full analysis pipeline.
         :param progress_callback: Function to update progress bar (0.0 - 1.0)
         """
         ticker = ticker.upper()
-        self.log(f"🔵 Memulai Deep Dive untuk {ticker}...")
+        self.log(f"🔵 Memulai Deep Dive untuk {ticker} ({timeframe})...")
         if progress_callback: progress_callback(0.1)
         
         # Save to History
         db_manager.add_history(ticker)
 
-        # 1. Check Cache
-        cached_data = db_manager.get_cached_analysis(ticker)
-        if cached_data:
-            self.log("⚡ Menggunakan Data Cache (Hemat Token)...")
-            if progress_callback: progress_callback(1.0)
-            
-            chart_filename = f"chart_{ticker}.jpg"
-            # Note: chart path handling might need adjustment depending on where chart_generator saves it
-            # For now, we assume it regenerates or we trust the path exists
-            # To be safe, we might skip chart in cache or check existence
-            return cached_data['full_message'], None # Cached chart path handling can be improved
+        # 1. Check Cache (Skip for now if timeframe is not standard, or implement better cache key)
+        # For simplicity, we only cache daily default. If timeframe != daily, skip cache or update cache key.
+        # Let's simple skip cache for non-daily for now to ensure freshness.
+        if timeframe == "daily":
+            cached_data = db_manager.get_cached_analysis(ticker)
+            if cached_data:
+                self.log("⚡ Menggunakan Data Cache (Hemat Token)...")
+                if progress_callback: progress_callback(1.0)
+                return cached_data['full_message'], None
 
         try:
             # 2. Technical Analysis
-            self.log("📊 Menjalankan Analisa Teknikal...")
+            self.log(f"📊 Menjalankan Analisa Teknikal ({timeframe})...")
             if progress_callback: progress_callback(0.3)
-            ta_data = analyze_technical(ticker)
+            ta_data = analyze_technical(ticker, timeframe=timeframe)
             
             # 3. News Fetching
             self.log("🌍 Mengambil Berita Real-Time...")
@@ -139,14 +164,22 @@ class StockAppController:
             chart_path = generate_chart(ta_data['ticker'], ta_data['df_daily'])
             
             # 6. Formatting
-            final_message = format_message(ta_data['ticker'], ta_data, ai_analysis, news_summary)
+            ai_text = ai_analysis
+            sentiment_score = 50
+            if isinstance(ai_analysis, dict):
+                ai_text = ai_analysis.get('analysis', '')
+                sentiment_score = ai_analysis.get('sentiment_score', 50)
             
-            # 7. Save
-            db_manager.save_analysis(ta_data['ticker'], ta_data, ai_analysis, final_message)
+            final_message = format_message(ta_data['ticker'], ta_data, ai_text, news_summary)
+            
+            # 7. Save (Only daily to DB for now to avoid schema change complexity)
+            if timeframe == "daily":
+                db_manager.save_analysis(ta_data['ticker'], ta_data, ai_text, final_message)
+            
             self.log("✅ Analisa Selesai.")
             if progress_callback: progress_callback(1.0)
             
-            return final_message, chart_path
+            return final_message, chart_path, sentiment_score
             
         except Exception as e:
             self.log(f"❌ Error during analysis: {str(e)}")

@@ -65,6 +65,11 @@ class StockSignalApp(ctk.CTk):
         # QR Button
         self.qr_btn = ctk.CTkButton(self.sidebar_frame, text="📱 Scan QR WhatsApp", command=self.show_qr_modal, fg_color="#333")
         self.qr_btn.grid(row=2, column=0, padx=20, pady=10)
+        
+        # Logout Button (initially hidden)
+        self.logout_btn = ctk.CTkButton(self.sidebar_frame, text="🚪 Logout WhatsApp", command=self.logout_whatsapp, fg_color="#800000", hover_color="red")
+        self.logout_btn.grid(row=2, column=0, padx=20, pady=10)
+        self.logout_btn.grid_remove()
 
         # Favorites Section
         self.fav_label = ctk.CTkLabel(self.sidebar_frame, text="⭐ Favorit:", font=ctk.CTkFont(size=14, weight="bold"))
@@ -171,10 +176,37 @@ class StockSignalApp(ctk.CTk):
         self.fav_action_btn = ctk.CTkButton(input_row, text="☆ Add Fav", width=100, command=self.add_favorite)
         self.fav_action_btn.pack(side="left")
 
+        # Timeframe Selection Frame
+        self.timeframe_var = ctk.StringVar(value="daily")
+        timeframe_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        timeframe_frame.pack(anchor="w", pady=(0, 10))
+        
+        ctk.CTkLabel(timeframe_frame, text="Timeframe:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 10))
+        
+        self.tf_daily = ctk.CTkRadioButton(timeframe_frame, text="Daily", variable=self.timeframe_var, value="daily")
+        self.tf_daily.pack(side="left", padx=10)
+        
+        self.tf_weekly = ctk.CTkRadioButton(timeframe_frame, text="Weekly", variable=self.timeframe_var, value="weekly")
+        self.tf_weekly.pack(side="left", padx=10)
+        
+        self.tf_monthly = ctk.CTkRadioButton(timeframe_frame, text="Monthly", variable=self.timeframe_var, value="monthly")
+        self.tf_monthly.pack(side="left", padx=10)
+
         self.analyze_btn = ctk.CTkButton(self.main_frame, text="🚀 Analisa Lengkap (Deep Dive)", command=self.start_analysis_thread)
         self.analyze_btn.pack(anchor="w", pady=(0, 10))
 
-        # Progress Bar
+        # Sentiment Meter (New)
+        sentiment_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        sentiment_frame.pack(anchor="w", fill="x", pady=(0, 5))
+        ctk.CTkLabel(sentiment_frame, text="Sentiment Score:", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+        self.sentiment_label = ctk.CTkLabel(sentiment_frame, text="N/A", font=ctk.CTkFont(size=12))
+        self.sentiment_label.pack(side="left", padx=5)
+        
+        self.sentiment_bar = ctk.CTkProgressBar(self.main_frame, width=300, progress_color="gray")
+        self.sentiment_bar.pack(anchor="w", pady=(0, 10))
+        self.sentiment_bar.set(0.5) # Default 50%
+
+        # Progress Bar (Analysis)
         self.progress_bar = ctk.CTkProgressBar(self.main_frame, width=300)
         self.progress_bar.pack(anchor="w", pady=(0, 20))
         self.progress_bar.set(0)
@@ -235,7 +267,7 @@ class StockSignalApp(ctk.CTk):
                 self.status_label.configure(text="Sistem: ONLINE ✅", text_color="green")
             else:
                 self.status_label.configure(text="Sistem: OFFLINE ❌", text_color="red")
-                self.log_ui("⚠️ Layanan WhatsApp belum siap. Mencoba lagi...")
+                # self.log_ui("⚠️ Layanan WhatsApp belum siap. Mencoba lagi...") # Suppress repeat log
                 self.after(5000, self.check_service_health) # Retry
         
         threading.Thread(target=_check, daemon=True).start()
@@ -244,26 +276,36 @@ class StockSignalApp(ctk.CTk):
     def poll_qr_code(self):
         """Periodically checks if QR code is available."""
         def _poll():
-            data = self.controller.get_qr_code()
-            if data:
-                status = data.get('status')
-                qr_string = data.get('qr')
-                
-                if status == 'connected':
-                    self.status_label.configure(text="WhatsApp: Connected 🔗", text_color="cyan")
-                    if self.qr_window:
-                        self.qr_window.destroy()
-                        self.qr_window = None
-                
-                elif status == 'scanning' and qr_string:
-                    self.status_label.configure(text="WhatsApp: Scan QR 📷", text_color="orange")
-                    # If we have a QR string, update the modal if it's open, or prompt user
-                    if not self.qr_window:
-                        # Auto-open only once if needed? Or just let user click?
-                        # Let's auto-open for better UX if it's the first time
-                        pass 
-                    else:
-                        self.update_qr_image(qr_string)
+            try:
+                data = self.controller.get_qr_code()
+                if data:
+                    status = data.get('status')
+                    qr_string = data.get('qr')
+                    
+                    if status == 'connected':
+                        self.status_label.configure(text="WhatsApp: Connected 🔗", text_color="cyan")
+                        self.qr_btn.grid_remove()
+                        self.logout_btn.grid()
+                        
+                        if self.qr_window:
+                            self.qr_window.destroy()
+                            self.qr_window = None
+                    
+                    elif status == 'scanning' and qr_string:
+                        self.status_label.configure(text="WhatsApp: Scan QR 📷", text_color="orange")
+                        self.qr_btn.grid()
+                        self.logout_btn.grid_remove()
+                        
+                        if self.qr_window:
+                            self.update_qr_image(qr_string)
+                            
+                    elif status == 'initializing':
+                        self.status_label.configure(text="WhatsApp: Init...", text_color="gray")
+                        self.qr_btn.grid()
+                        self.logout_btn.grid_remove()
+                        
+            except Exception as e:
+                pass
             
             # Poll every 2 seconds
             self.after(2000, self.poll_qr_code)
@@ -289,13 +331,27 @@ class StockSignalApp(ctk.CTk):
             self.qr_window.focus()
 
     def refresh_qr_display(self):
-        data = self.controller.get_qr_code()
-        if data and data.get('qr'):
-            self.update_qr_image(data.get('qr'))
-        elif data and data.get('status') == 'connected':
-             if self.qr_window:
-                ctk.CTkLabel(self.qr_window, text="✅ Terhubung!", font=("Arial", 20), text_color="green").pack(pady=50)
-                self.after(2000, self.qr_window.destroy)
+        try:
+            data = self.controller.get_qr_code()
+            if not data:
+                return
+
+            status = data.get('status')
+            qr_string = data.get('qr')
+
+            if qr_string:
+                self.update_qr_image(qr_string)
+            elif status == 'connected':
+                if self.qr_window:
+                    for widget in self.qr_window.winfo_children():
+                        widget.destroy()
+                    ctk.CTkLabel(self.qr_window, text="✅ Terhubung!", font=("Arial", 20), text_color="green").pack(pady=50)
+                    self.after(2000, self.qr_window.destroy)
+            elif status == 'initializing':
+                if self.qr_window:
+                     self.qr_image_label.configure(text="Sedang inisialisasi...\nMohon tunggu...", image="")
+        except Exception as e:
+            self.log_ui(f"Error fetching QR: {e}")
 
     def update_qr_image(self, qr_data):
         if not self.qr_window or not self.qr_window.winfo_exists():
@@ -306,17 +362,29 @@ class StockSignalApp(ctk.CTk):
             qr = qrcode.QRCode(box_size=10, border=2)
             qr.add_data(qr_data)
             qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
+            # Create PIL image
+            img = qr.make_image(fill_color="black", back_color="white").get_image()
             
             # Convert to CTkImage
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 250))
             
             self.qr_image_label.configure(image=ctk_img, text="")
         except Exception as e:
-            try:
-                print(f"QR Gen Error: {e}")
-            except:
-                pass
+            pass # Suppress QR errors in production UI if they are transient
+
+    def logout_whatsapp(self):
+        if messagebox.askyesno("Logout", "Apakah anda yakin ingin logout dari WhatsApp?"):
+            self.log_ui("🚪 Logging out WhatsApp...")
+            def _logout():
+                if self.controller.logout_whatsapp():
+                    self.log_ui("✅ Logout berhasil. Silakan scan ulang.")
+                    self.status_label.configure(text="WhatsApp: Disconnected", text_color="red")
+                    # UI update happens in poll_qr_code loop
+                else:
+                    self.log_ui("❌ Gagal logout.")
+            
+            threading.Thread(target=_logout, daemon=True).start()
+
 
     # --- CORE FEATURES ---
     
@@ -339,6 +407,8 @@ class StockSignalApp(ctk.CTk):
         ticker = self.ticker_entry.get().strip()
         if not ticker:
             return
+        
+        timeframe = self.timeframe_var.get()
 
         self.toggle_inputs(False)
         self.progress_bar.set(0)
@@ -349,17 +419,22 @@ class StockSignalApp(ctk.CTk):
         # Clear preview text before starting new analysis
         self.preview_textbox.delete("1.0", "end")
 
-        threading.Thread(target=self.run_analysis_safe, args=(ticker,), daemon=True).start()
+        threading.Thread(target=self.run_analysis_safe, args=(ticker, timeframe), daemon=True).start()
 
-    def run_analysis_safe(self, ticker):
+    def run_analysis_safe(self, ticker, timeframe):
         try:
-            final_message, chart_path = self.controller.run_analysis(
+            final_message, chart_path, sentiment_score = self.controller.run_analysis(
                 ticker, 
+                timeframe=timeframe,
                 progress_callback=self.update_progress
             )
             
             self.current_chart_path = chart_path
             self.preview_textbox.insert("end", final_message)
+            
+            # Update Sentiment UI
+            self.update_sentiment_ui(sentiment_score)
+            
             self.send_btn.configure(state="normal")
             
             # Update History UI safely in main thread
@@ -369,6 +444,24 @@ class StockSignalApp(ctk.CTk):
             self.log_ui(f"❌ CRITICAL ERROR: {e}")
         finally:
             self.toggle_inputs(True)
+
+    def update_sentiment_ui(self, score):
+        # Score is 0-100
+        val = score / 100.0
+        self.sentiment_bar.set(val)
+        self.sentiment_label.configure(text=f"{score}/100")
+        
+        # Color Logic
+        if score >= 75:
+            self.sentiment_bar.configure(progress_color="#00ff00") # Green
+        elif score >= 60:
+            self.sentiment_bar.configure(progress_color="#9acd32") # Light Green
+        elif score <= 25:
+            self.sentiment_bar.configure(progress_color="#ff0000") # Red
+        elif score <= 40:
+            self.sentiment_bar.configure(progress_color="#ff4500") # Orange
+        else:
+            self.sentiment_bar.configure(progress_color="#ffd700") # Gold/Yellow
 
     def update_progress(self, val):
         self.progress_bar.set(val)

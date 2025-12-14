@@ -68,8 +68,28 @@ app.get('/qr', (req, res) => {
     return res.json({ status: 'initializing', qr: null });
 });
 
+app.post('/logout', async (req, res) => {
+    try {
+        await client.logout();
+        isReady = false;
+        latestQr = null;
+        res.json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Error logging out:', error);
+        res.status(500).json({ error: 'Failed to logout', details: error.message });
+    }
+});
+
 client.on('authenticated', () => {
     console.log('Authenticated successfully.');
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Client was logged out', reason);
+    isReady = false;
+    latestQr = null;
+    // Re-initialize to allow new login scan
+    client.initialize().catch(err => console.error('Re-init failed:', err));
 });
 
 client.initialize();

@@ -34,14 +34,15 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 
 📊 *DATA TEKNIKAL & VOLUME FLOW:*
 • *Tren:* {ta_data['trend']} {trend_emoji}
+• *Candle:* {ta_data.get('candle_pattern', '-')}
 • *MACD:* {ta_data['macd_status']}
-• *Bollinger:* {ta_data['bb_status']}
 • *Volume Flow:* {ta_data['bandar_status']}
 • *Indikasi:* {ta_data['bandar_action']}
+• *MFI (Money Flow):* {ta_data.get('mfi', 50):.2f}
 • *Holder Utama:* {ta_data.get('major_holders', 'N/A')}
 • *Harga:* {ta_data['price']:.0f}
 • *Volume:* {ta_data['vol_status']} {vol_emoji}
-• *RSI:* {ta_data['rsi']:.2f}
+• *RSI:* {ta_data['rsi']:.2f} | *ADX:* {ta_data.get('adx', 0):.2f}
 {news_section}
 🤖 *ANALISA AI (Smart Money & News):*
 {ai_analysis}
@@ -110,7 +111,14 @@ def main():
 
     # 4. AI Analysis
     print("Running AI Technical Analysis (Gemini)...")
-    ai_analysis = get_ai_analysis(ta_data['ticker'], ta_data, news_summary)
+    ai_result = get_ai_analysis(ta_data['ticker'], ta_data, news_summary)
+    
+    # Handle AI Result (Dict or String)
+    if isinstance(ai_result, dict):
+        ai_analysis = ai_result.get('analysis', "Error parsing AI analysis.")
+        # sentiment_score = ai_result.get('sentiment_score', 50) # Use if needed in future features
+    else:
+        ai_analysis = str(ai_result)
 
     # 5. Format Message
     final_message = format_message(ta_data['ticker'], ta_data, ai_analysis, news_summary)
