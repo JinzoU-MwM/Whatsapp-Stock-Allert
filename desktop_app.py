@@ -165,38 +165,43 @@ class StockSignalApp(ctk.CTk):
 
         # --- 1. CONTROL CARD (Top) ---
         self.control_card = ctk.CTkFrame(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
-        self.control_card.grid(row=0, column=0, sticky="ew", pady=(0, 20), ipady=15)
+        self.control_card.grid(row=0, column=0, sticky="ew", pady=(0, 20), ipady=5)
         
         # Grid layout for control card to ensure vertical alignment
+        # We set row 0 weight to 1 to allow vertical centering
+        self.control_card.grid_rowconfigure(0, weight=1)
         self.control_card.grid_columnconfigure(0, weight=0) # Ticker
         self.control_card.grid_columnconfigure(1, weight=0) # Save
         self.control_card.grid_columnconfigure(2, weight=1) # Spacer
         self.control_card.grid_columnconfigure(3, weight=0) # Timeframe
         self.control_card.grid_columnconfigure(4, weight=0) # Run
 
+        # Common grid options for vertical centering
+        grid_opts = {"row": 0, "pady": 15, "sticky": "ns"} # sticky="ns" ensures widgets fill vertical space if needed or center
+
         # Element 1: Ticker Entry
         self.ticker_entry = ctk.CTkEntry(self.control_card, placeholder_text="TICKER (e.g. BBCA)", width=140, height=40, font=("Arial", 16, "bold"), border_color="gray")
-        self.ticker_entry.grid(row=0, column=0, padx=(20, 10), pady=10)
+        self.ticker_entry.grid(column=0, padx=(20, 10), **grid_opts)
         self.ticker_entry.bind('<Return>', self.start_analysis_thread)
         self.ticker_entry.bind('<KeyRelease>', lambda e: self.update_favorite_btn_state(self.ticker_entry.get().strip().upper()))
 
         # Element 2: Save Button
         self.fav_action_btn = ctk.CTkButton(self.control_card, text="☆", width=50, height=40, fg_color="#333", command=self.add_favorite)
-        self.fav_action_btn.grid(row=0, column=1, padx=(0, 10), pady=10)
+        self.fav_action_btn.grid(column=1, padx=(0, 10), **grid_opts)
 
         # Element 3: Timeframe (Segmented)
         self.timeframe_var = ctk.StringVar(value="daily")
         self.tf_seg_btn = ctk.CTkSegmentedButton(self.control_card, values=["Daily", "Weekly", "Monthly"], 
                                                  variable=self.timeframe_var, width=250, height=40, 
                                                  selected_color="#1F6AA5", selected_hover_color="#144870", font=("Arial", 12, "bold"))
-        self.tf_seg_btn.grid(row=0, column=3, padx=10, pady=10)
+        self.tf_seg_btn.grid(column=3, padx=10, **grid_opts)
 
         # Element 4: Run Analysis Button (Accent Color, Large)
         self.analyze_btn = ctk.CTkButton(self.control_card, text="RUN ANALYSIS ⚡", width=200, height=40, 
                                        font=ctk.CTkFont(size=14, weight="bold"),
                                        fg_color="#2CC985", hover_color="#25A96E", text_color="black", # Emerald Green
                                        command=self.start_analysis_thread)
-        self.analyze_btn.grid(row=0, column=4, padx=(10, 20), pady=10)
+        self.analyze_btn.grid(column=4, padx=(10, 20), **grid_opts)
 
         # Progress Bar (Attached to bottom of card)
         self.progress_bar = ctk.CTkProgressBar(self.control_card, height=4, progress_color="#2CC985", width=500)
@@ -239,21 +244,27 @@ class StockSignalApp(ctk.CTk):
         self.content_area.grid_rowconfigure(0, weight=1)
         self.content_area.grid_columnconfigure(0, weight=1)
 
-        # 1. Empty State Placeholder
+        # 1. Empty State Placeholder (Visible by default)
         self.placeholder_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
         self.placeholder_frame.grid(row=0, column=0, sticky="nsew")
         
-        ctk.CTkLabel(self.placeholder_frame, text="🔍", font=("Arial", 48)).pack(pady=(80, 10))
-        ctk.CTkLabel(self.placeholder_frame, text="Enter a Ticker to Begin Analysis", font=("Arial", 16, "bold"), text_color="gray").pack()
+        # Use a container for centering
+        place_container = ctk.CTkFrame(self.placeholder_frame, fg_color="transparent")
+        place_container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        ctk.CTkLabel(place_container, text="🔍", font=("Arial", 64)).pack(pady=10)
+        ctk.CTkLabel(place_container, text="Enter a Stock Ticker to Begin", font=("Arial", 18, "bold"), text_color="gray").pack()
 
         # 2. Main Textbox (Hidden Initially)
         self.preview_textbox = ctk.CTkTextbox(self.content_area, font=("Consolas", 13), fg_color="#111", text_color="#ddd", corner_radius=5)
         # We don't grid it yet, logic will switch it
 
         # Row 2: Action Buttons (Bottom Right)
-        self.action_button_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
-        self.action_button_frame.grid(row=2, column=0, sticky="e", padx=20, pady=15)
-
+        # Using a frame at the bottom of the tab content
+        self.action_button_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent", height=50)
+        self.action_button_frame.grid(row=2, column=0, sticky="e", padx=20, pady=(5, 15))
+        
+        # Ensure buttons stay to the right
         self.copy_btn = ctk.CTkButton(self.action_button_frame, text="Copy Text 📋", height=35, width=120, 
                                     fg_color="#444", hover_color="#555", 
                                     command=self.copy_to_clipboard)
