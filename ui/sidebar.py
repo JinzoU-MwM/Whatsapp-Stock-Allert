@@ -63,7 +63,9 @@ class Sidebar(ctk.CTkFrame):
         self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, 
                                       fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000",
                                       width=180, height=35)
-        self.logout_btn.grid(row=21, column=0, padx=20, pady=20, sticky="s")
+        
+        # FIX: Ensure it has enough vertical space and padding from bottom
+        self.logout_btn.grid(row=21, column=0, padx=20, pady=(10, 20), sticky="s")
         self.logout_btn.grid_remove() # Hidden initially
 
     def update_lists(self):
