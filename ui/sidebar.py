@@ -49,14 +49,14 @@ class Sidebar(ctk.CTkFrame):
         self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.fav_label.grid(row=6, column=0, padx=20, pady=(20, 5), sticky="w")
 
-        self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=180, fg_color="transparent")
+        self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=140, fg_color="transparent")
         self.fav_frame.grid(row=7, column=0, padx=10, pady=5)
         
         # 6. History Section
         self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.hist_label.grid(row=8, column=0, padx=20, pady=(20, 5), sticky="w")
         
-        self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=150, fg_color="transparent")
+        self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=120, fg_color="transparent")
         self.hist_frame.grid(row=9, column=0, padx=10, pady=5)
         
         # 20. Logout Button (Sticky Bottom)
