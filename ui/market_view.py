@@ -146,10 +146,23 @@ class MarketView(ctk.CTkFrame):
         # 2d. Frame: INFO
         self.frame_info = ctk.CTkFrame(self.output_container, fg_color="transparent")
         self.frame_info.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self.frame_info.grid_columnconfigure(0, weight=1)
+        self.frame_info.grid_rowconfigure(2, weight=1) # Output area expands
         
-        ctk.CTkLabel(self.frame_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).pack(pady=20)
-        self.group_btn = ctk.CTkButton(self.frame_info, text="Scan WhatsApp Group IDs", command=self.fetch_groups)
-        self.group_btn.pack()
+        # Header
+        ctk.CTkLabel(self.frame_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).grid(row=0, column=0, pady=(20, 10))
+        
+        # Scan Button
+        self.group_btn = ctk.CTkButton(self.frame_info, text="Scan WhatsApp Group IDs", 
+                                     font=("Arial", 12, "bold"), height=35,
+                                     command=self.fetch_groups)
+        self.group_btn.grid(row=1, column=0, pady=10)
+        
+        # Output Area (Terminal Style)
+        self.info_output = ctk.CTkTextbox(self.frame_info, font=("Consolas", 12), fg_color="#000", text_color="#0f0", corner_radius=5)
+        self.info_output.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
+        self.info_output.insert("1.0", "Ready to scan. Click the button above to list WhatsApp groups.\n")
+        self.info_output.configure(state="disabled")
 
         # Initialize View State
         self.switch_tab("REPORT PREVIEW")
@@ -292,17 +305,38 @@ class MarketView(ctk.CTkFrame):
         threading.Thread(target=_send, daemon=True).start()
 
     def fetch_groups(self):
-        self.log_message("🔍 Fetching WhatsApp Groups...")
+        self.group_btn.configure(state="disabled", text="Scanning...")
+        
+        # Clear output
+        self.info_output.configure(state="normal")
+        self.info_output.delete("1.0", "end")
+        self.info_output.insert("end", "> Initializing scan...\n")
+        self.info_output.configure(state="disabled")
+        
         def _run():
             groups = self.controller.fetch_groups()
-            if not groups:
-                self.log_message("⚠️ No groups found or connection failed.")
-                return
             
-            self.log_message("\n=== WHATSAPP GROUPS ===")
-            for g in groups:
-                self.log_message(f"📁 {g['name']} | ID: {g['id']}")
-            self.log_message("ℹ️ Copy Group ID ending in @g.us to .env")
+            # UI Update must be scheduled on main thread
+            def _update_ui():
+                self.info_output.configure(state="normal")
+                if not groups:
+                    self.info_output.insert("end", "\n[!] No groups found or connection failed.\n")
+                    self.info_output.insert("end", "    Check if WhatsApp is connected in Sidebar.")
+                else:
+                    self.info_output.insert("end", f"\n=== WHATSAPP GROUPS FOUND ({len(groups)}) ===\n\n")
+                    for g in groups:
+                        name = g.get('name', 'Unknown')
+                        gid = g.get('id', 'Unknown')
+                        self.info_output.insert("end", f"📁 {name}\n   ID: {gid}\n\n")
+                    self.info_output.insert("end", "--------------------------------------------------\n")
+                    self.info_output.insert("end", "ℹ️  Copy the ID ending in '@g.us' to your .env file\n")
+                    self.info_output.insert("end", "    TARGET_PHONE=12345678@g.us\n")
+                
+                self.info_output.see("end")
+                self.info_output.configure(state="disabled")
+                self.group_btn.configure(state="normal", text="Scan WhatsApp Group IDs")
+
+            self.after(0, _update_ui)
             
         threading.Thread(target=_run, daemon=True).start()
 
