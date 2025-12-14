@@ -95,6 +95,20 @@ python desktop_app.py
 
 ---
 
+## 🧪 Testing
+
+To run the unit tests and verify the integrity of the analysis engine:
+
+```bash
+# Activate venv
+venv\Scripts\activate
+
+# Run tests
+python -m pytest tests/
+```
+
+---
+
 ## ⚙️ Configuration
 
 You can now configure the app directly via the **GUI Settings Tab**, or manually edit the `.env` file:

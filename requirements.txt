@@ -8,3 +8,5 @@ python-dotenv
 mplfinance
 qrcode
 Pillow
+pytest
+pytest-mock
