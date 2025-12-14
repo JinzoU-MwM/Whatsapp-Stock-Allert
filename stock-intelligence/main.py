@@ -163,7 +163,20 @@ def main():
         ai_analysis = ai_result.get('analysis', "Error parsing AI analysis.")
         # sentiment_score = ai_result.get('sentiment_score', 50) # Use if needed in future features
     else:
-        ai_analysis = str(ai_result)
+        # If it returns string but looks like a dict str, try to parse one last time
+        import ast
+        try:
+            # Dangerous if untrusted, but usually okay for our own AI output
+            parsed = json.loads(ai_result) if isinstance(ai_result, str) else None
+            if not parsed and isinstance(ai_result, str) and ai_result.strip().startswith('{'):
+                 parsed = json.loads(ai_result)
+            
+            if parsed and isinstance(parsed, dict):
+                ai_analysis = parsed.get('analysis', str(ai_result))
+            else:
+                ai_analysis = str(ai_result)
+        except:
+            ai_analysis = str(ai_result)
 
     # 5. Format Message
     final_message = format_message(ta_data['ticker'], ta_data, ai_analysis, news_summary)

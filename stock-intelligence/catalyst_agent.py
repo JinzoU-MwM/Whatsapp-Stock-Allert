@@ -61,9 +61,21 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         response = model.generate_content(prompt)
         text = response.text.strip()
         
-        # Clean markdown if present
+        # Robust JSON cleaning
+        import re
+        # Find the first { and the last }
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            json_str = match.group(0)
+            try:
+                import json
+                return json.loads(json_str)
+            except:
+                pass # Continue to fallback if regex match isn't valid JSON
+        
+        # Fallback manual cleaning
         if text.startswith("```json"):
-            text = text.replace("```json", "").replace("```", "")
+            text = text.replace("```json", "").replace("```", "").strip()
             
         import json
         try:
