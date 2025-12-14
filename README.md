@@ -1,120 +1,122 @@
-# StockSignal Intelligence (Bloomberg Edition)
+# 📈 StockSignal Intelligence
 
-An AI-powered stock analysis tool that combines Technical Analysis, Bandarmology (Volume Flow), and Real-time News Sentiment to generate actionable trading insights. The results are broadcasted directly to WhatsApp.
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
+![CustomTkinter](https://img.shields.io/badge/GUI-CustomTkinter-0066cc?logo=python)
+![Gemini AI](https://img.shields.io/badge/AI-Gemini%202.0-8E75B2?logo=google)
+![Node.js](https://img.shields.io/badge/WhatsApp-Node.js%20Service-339933?logo=nodedotjs)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-![StockSignal Dashboard](https://via.placeholder.com/800x400?text=StockSignal+Dashboard)
+**An AI-powered institutional trading assistant for the Indonesian Stock Exchange (IDX).**
 
-## ✨ New Features (Dec 2025 Update)
+StockSignal Intelligence fuses **Technical Analysis**, **Bandarmology (Smart Money Flow)**, and **AI-driven Sentiment Analysis** into a single, Bloomberg-terminal style dashboard. It delivers actionable "Buy/Hold/Sell" insights directly to your WhatsApp with one click.
 
-*   **📈 Portfolio Management**: Track your stock portfolio with Real-Time P/L calculation (Equity, %, Gain/Loss).
-*   **🖥️ Bloomberg-Style UI**: A completely redesigned, dark-themed professional dashboard with "Cyberpunk/Emerald" aesthetics.
-*   **📊 Advanced Technicals**: Added MFI, OBV, ADX, ATR, and Candlestick Pattern detection.
-*   **🐋 Bandarmology**: Integration with **GoAPI** for real Broker Summary and Foreign Flow analysis.
-*   **🤖 One-Click Setup**: Enhanced `start_app.bat` that auto-installs Python/Node.js dependencies.
-*   **📱 WhatsApp Group Scanner**: Dedicated tool to easily find and copy Group IDs for broadcasting.
+---
+
+## 📸 Dashboard Showcase
+
+| **Market Analysis** | **Portfolio Tracker** | **WhatsApp Alert** |
+|:---:|:---:|:---:|
+| ![Market Dashboard](https://via.placeholder.com/250x150?text=Market+Dashboard) | ![Portfolio Manager](https://via.placeholder.com/250x150?text=Portfolio+View) | ![WhatsApp Alert](https://via.placeholder.com/250x150?text=WhatsApp+Alert) |
+
+---
+
+## ✨ Key Features (v2.1 Update)
+
+*   **🖥️ Bloomberg-Style Interface**: A completely redesigned dark-mode UI with "Cyberpunk Emerald" accents, dedicated terminals, and professional charting.
+*   **🐋 Advanced Bandarmology**: Integration with **GoAPI** to analyze real Broker Summary (Top Buyers/Sellers) and Foreign Flow accumulation.
+*   **🤖 Gemini 2.0 Brain**: Synthesizes chart patterns, volume anomalies, and news sentiment into human-readable trading plans.
+*   **📈 Portfolio Manager**: Real-time P/L tracking with live price updates via YFinance. Calculate Equity, Gain/Loss, and % Return instantly.
+*   **📱 Smart WhatsApp Integration**:
+    *   One-click broadcast of charts + reports.
+    *   Built-in **Group ID Scanner** to easily target WhatsApp Groups.
+*   **⚙️ Zero-Code Configuration**: Manage your API keys and target numbers directly from the new **Settings GUI**.
+
+---
+
+## 📂 Project Structure
+
+The project has been refactored for modularity and scalability:
+
+```plaintext
+StockSignal-Intelligence/
+├── ui/                     # Modular UI Components
+│   ├── app.py              # Main Application Container
+│   ├── sidebar.py          # Navigation & Favorites
+│   ├── market_view.py      # Technical Analysis Dashboard
+│   ├── portfolio_view.py   # Portfolio Management
+│   └── settings_view.py    # GUI Config Manager
+├── stock-intelligence/     # Core Logic Engine
+│   ├── quant_engine.py     # Bandarmology Algorithms
+│   ├── technical_analysis.py # TA Indicators (RSI, MACD, OBV)
+│   └── app_controller.py   # Bridge between UI and Logic
+├── whatsapp-service/       # Node.js Gateway
+│   └── index.js            # whatsapp-web.js Service
+├── desktop_app.py          # Application Launcher
+└── start_app.bat           # Auto-Setup Script
+```
 
 ---
 
 ## 🛠️ Prerequisites
 
-Before you begin, ensure you have the following installed on your computer:
-
-1.  **Python 3.10+**: [Download Python](https://www.python.org/downloads/)
-    *   *Important*: During installation, check the box **"Add Python to PATH"**.
-2.  **Node.js & npm** (Required for WhatsApp Service): [Download Node.js](https://nodejs.org/)
-    *   Download the "LTS" version.
-3.  **Git**: [Download Git](https://git-scm.com/downloads)
+*   **Python 3.10+**: [Download](https://www.python.org/downloads/) (Check **"Add to PATH"** during install).
+*   **Node.js (LTS)**: [Download](https://nodejs.org/) (Required for WhatsApp gateway).
+*   **Git**: [Download](https://git-scm.com/).
 
 ---
 
-## 📦 Installation Guide
+## 🚀 Installation & Setup
 
-Follow these steps precisely to set up the project on a new computer.
+### Option 1: The "One-Click" Method (Recommended)
+Simply double-click **`start_app.bat`**. This script will automatically:
+1.  Check for Python & Node.js.
+2.  Create a virtual environment (`venv`).
+3.  Install all Python dependencies.
+4.  Install Node.js modules for WhatsApp.
+5.  Launch the application.
 
-### 1. Clone the Repository
-Open your terminal (Command Prompt or PowerShell) and run:
+### Option 2: Manual Setup
 ```bash
-git clone https://github.com/JinzoU-MwM/Whatsapp-Stock-Allert.git
-cd Whatsapp-Stock-Allert
-```
-
-### 2. Auto-Setup (Recommended)
-Simply double-click the **`start_app.bat`** file.
-*   It will check for Python & Node.js.
-*   It will create the virtual environment (`venv`).
-*   It will install all Python `requirements.txt`.
-*   It will install Node.js modules for the WhatsApp service.
-*   It will launch the dashboard.
-
-### 3. Manual Setup (Alternative)
-If the batch file fails, run these commands:
-```bash
-# Create venv
+# 1. Create & Activate Venv
 python -m venv venv
 venv\Scripts\activate
 
-# Install Python deps
+# 2. Install Python Deps
 pip install -r requirements.txt
 
-# Install Node deps
+# 3. Install Node Deps
 cd whatsapp-service
 npm install
 cd ..
+
+# 4. Run App
+python desktop_app.py
 ```
 
-### 4. Configure Environment Variables
-1.  Copy the example configuration file:
-    ```bash
-    copy .env.example .env
-    ```
-2.  Open `.env` with a text editor and fill in your keys:
-    ```ini
-    GOOGLE_API_KEY=your_gemini_api_key
-    SERPER_API_KEY=your_serper_api_key
-    GOAPI_API_KEY=your_goapi_key_here (Optional: For Real Bandarmology)
-    TARGET_PHONE=6281234567890@c.us
-    ```
+---
+
+## ⚙️ Configuration
+
+You can now configure the app directly via the **GUI Settings Tab**, or manually edit the `.env` file:
+
+```ini
+GOOGLE_API_KEY=your_gemini_api_key      # Required: AI Analysis
+SERPER_API_KEY=your_serper_api_key      # Required: Real-time News
+GOAPI_API_KEY=your_goapi_key            # Optional: Real Bandarmology Data
+TARGET_PHONE=6281234567890@c.us         # Default WhatsApp Recipient
+```
+
+*   **Tip**: Use the **Info Tab -> Scan Groups** feature in the app to find your Group ID (ends in `@g.us`).
 
 ---
 
-## 🚀 How to Use
+## ⚠️ Disclaimer
 
-### 1. Market Data Analysis
-*   Enter a ticker (e.g., `BBCA`, `TLKM`) in the top bar.
-*   Select Timeframe (Daily/Weekly).
-*   Click **RUN ANALYSIS ⚡**.
-*   View the Confidence Score, AI Report, and Chart in the "Report Preview" tab.
-*   Click **Send WhatsApp** to broadcast the result.
-
-### 2. Portfolio Management
-*   Switch to the **PORTFOLIO** tab in the sidebar.
-*   Add your positions (Ticker, Avg Price, Lots).
-*   Click **REFRESH PRICES ⚡** to see your current Market Value and P/L% based on real-time data.
-
-### 3. WhatsApp Integration
-*   **First Run**: The app will show a QR Code. Scan it with your phone (Linked Devices).
-*   **Groups**: Go to the **INFO** tab -> Click **Scan WhatsApp Group IDs**. Copy the ID (ends in `@g.us`) to your `.env` file as `TARGET_PHONE`.
+> **DYOR (Do Your Own Research)**
+> This software is for educational and informational purposes only. The "Confidence Score" and AI recommendations are generated based on historical data and algorithms, which may not predict future results. The developer is not responsible for any financial losses incurred from using this tool.
 
 ---
-
-## 📜 Changelog (Latest)
-
-*   **Refactor**: Split monolithic `desktop_app.py` into modular UI components (`ui/sidebar.py`, `ui/market_view.py`, etc.).
-*   **UI Polish**: Fixed sidebar layout, logout button visibility, and header alignment.
-*   **Feature**: Added Portfolio Management with SQLite database and YFinance pricing.
-*   **Feature**: Added "System Logs" and "Info" tabs with dedicated output terminals.
-*   **Fix**: Resolved GoAPI date logic for EOD broker summary data.
-*   **Fix**: Robust error handling for application startup.
-
----
-
-## ❓ Troubleshooting
-
-**Q: The app opens but shows an error popup.**
-*   Read the traceback in the popup. It usually means a missing library or API key.
-
-**Q: WhatsApp Logout button is hidden.**
-*   The sidebar layout has been optimized. Try resizing the window taller, although the latest update (v2.1) compacted the lists to fix this.
 
 ## 📄 License
-MIT License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
