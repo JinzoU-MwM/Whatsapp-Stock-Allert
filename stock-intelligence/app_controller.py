@@ -272,8 +272,39 @@ class StockAppController:
         return db_manager.get_portfolio()
 
     def add_portfolio_item(self, ticker, price, lots):
-        if db_manager.add_portfolio(ticker, price, lots):
-            self.log(f"💼 Portfolio Updated: {ticker} (Avg: {price}, Lots: {lots})")
+        """
+        Adds item to portfolio with Weighted Average logic.
+        Formula: New Avg = ((Old Avg * Old Lots) + (New Price * New Lots)) / (Old Lots + New Lots)
+        """
+        ticker = ticker.upper()
+        
+        # 1. Check if exists
+        existing = db_manager.get_portfolio_item(ticker)
+        
+        final_price = price
+        final_lots = lots
+        
+        if existing:
+            old_price = existing['avg_price']
+            old_lots = existing['lots']
+            
+            total_lots = old_lots + lots
+            
+            # Prevent division by zero if someone enters negative lots (selling)
+            if total_lots > 0:
+                weighted_avg = ((old_price * old_lots) + (price * lots)) / total_lots
+                final_price = weighted_avg
+                final_lots = total_lots
+                self.log(f"📉 Averaging Down/Up for {ticker}: Old {old_price:,.0f} -> New {final_price:,.0f}")
+            elif total_lots == 0:
+                # Sold everything
+                return self.remove_portfolio_item(ticker)
+            else:
+                self.log(f"⚠️ Cannot have negative lots for {ticker}")
+                return False
+
+        if db_manager.add_portfolio(ticker, final_price, final_lots):
+            self.log(f"💼 Portfolio Saved: {ticker} @ {final_price:,.0f} (Qty: {final_lots})")
             return True
         return False
 

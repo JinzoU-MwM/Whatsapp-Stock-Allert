@@ -196,6 +196,22 @@ def get_portfolio():
         })
     return portfolio
 
+def get_portfolio_item(ticker):
+    """Retrieves a single portfolio item by ticker."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM portfolio WHERE ticker = ?", (ticker.upper(),))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            "ticker": row["ticker"],
+            "avg_price": row["avg_price"],
+            "lots": row["lots"]
+        }
+    return None
+
 def delete_portfolio(ticker):
     conn = get_db_connection()
     try:
