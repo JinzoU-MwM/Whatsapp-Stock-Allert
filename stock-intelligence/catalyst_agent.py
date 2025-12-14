@@ -38,7 +38,9 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         - Bollinger Bands: {ta_data['bb_status']}
         - RSI (14): {ta_data['rsi']:.2f} | MFI (Money Flow): {ta_data.get('mfi', 50):.2f}
         - Volume Status: {ta_data['vol_status']} ({ta_data['vol_ratio']:.2f}x avg)
-        - SMART MONEY / BANDARMOLOGY: {ta_data['bandar_status']} ({ta_data['bandar_action']})
+        - BANDARMOLOGY (Broker Summary): {ta_data['bandar_status']}
+        - DETAIL BANDAR (Top Buyer/Seller): {ta_data.get('bandar_summary', '-')}
+        - FOREIGN FLOW (Asing): {ta_data.get('foreign_status', 'N/A')}
         - Major Holder (Context): {ta_data.get('major_holders', 'N/A')}
         - Support: {ta_data['support']:.0f} | Resistance: {ta_data['resistance']:.0f}
         - Volatilitas (ATR): {ta_data.get('atr', 0):.0f} (Basis SL/TP)
@@ -47,8 +49,12 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         {news_summary}
         
         TUGAS UTAMA: 
-        Cari kata kunci "Net Buy", "Net Sell", "Asing", "Foreign", "Borong", atau "Guyur" di dalam berita.
-        Jika ditemukan, jadikan itu sebagai "REAL BANDARMOLOGI insight".
+        Analisis data di atas secara holistik.
+        
+        PENTING - BANDARMOLOGY:
+        - Prioritaskan data "BANDARMOLOGY (Broker Summary)" dan "DETAIL BANDAR" di atas untuk wawasan akumulasi/distribusi.
+        - Gunakan sentimen berita sebagai pendukung, BUKAN sumber utama data bandar (kecuali data broker kosong).
+        - Jika "DETAIL BANDAR" berisi kode broker (misal: AK, ZP, BK), sebutkan peran mereka (Institusi/Asing) dalam analisis.
         
         FORMAT OUTPUT (JSON):
         Keluarkan jawaban HANYA dalam format JSON valid ini (tanpa markdown ```json):
