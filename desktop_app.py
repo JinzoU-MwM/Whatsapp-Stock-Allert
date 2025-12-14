@@ -166,55 +166,45 @@ class StockSignalApp(ctk.CTk):
         # --- 1. CONTROL CARD (Top) ---
         self.control_card = ctk.CTkFrame(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
         self.control_card.grid(row=0, column=0, sticky="ew", pady=(0, 20), ipady=15)
-        self.control_card.grid_columnconfigure(1, weight=1)
+        
+        # Grid layout for control card to ensure vertical alignment
+        self.control_card.grid_columnconfigure(0, weight=0) # Ticker
+        self.control_card.grid_columnconfigure(1, weight=0) # Save
+        self.control_card.grid_columnconfigure(2, weight=1) # Spacer
+        self.control_card.grid_columnconfigure(3, weight=0) # Timeframe
+        self.control_card.grid_columnconfigure(4, weight=0) # Run
 
-        # Ticker Input Group
-        input_frame = ctk.CTkFrame(self.control_card, fg_color="transparent")
-        input_frame.pack(side="left", padx=20, fill="y")
-        
-        ctk.CTkLabel(input_frame, text="TICKER SYMBOL", font=ctk.CTkFont(size=10, weight="bold"), text_color="gray").pack(anchor="w")
-        
-        self.input_row = ctk.CTkFrame(input_frame, fg_color="transparent")
-        self.input_row.pack(anchor="w")
-        
-        self.ticker_entry = ctk.CTkEntry(self.input_row, placeholder_text="e.g., BBCA", width=120, height=35, font=("Arial", 16, "bold"), border_color="gray")
-        self.ticker_entry.pack(side="left", padx=(0, 10))
+        # Element 1: Ticker Entry
+        self.ticker_entry = ctk.CTkEntry(self.control_card, placeholder_text="TICKER (e.g. BBCA)", width=140, height=40, font=("Arial", 16, "bold"), border_color="gray")
+        self.ticker_entry.grid(row=0, column=0, padx=(20, 10), pady=10)
         self.ticker_entry.bind('<Return>', self.start_analysis_thread)
         self.ticker_entry.bind('<KeyRelease>', lambda e: self.update_favorite_btn_state(self.ticker_entry.get().strip().upper()))
-        
-        self.fav_action_btn = ctk.CTkButton(self.input_row, text="☆ Save", width=80, height=35, fg_color="#333", command=self.add_favorite)
-        self.fav_action_btn.pack(side="left")
 
-        # Timeframe & Action Group
-        action_frame = ctk.CTkFrame(self.control_card, fg_color="transparent")
-        action_frame.pack(side="right", padx=20, fill="y")
+        # Element 2: Save Button
+        self.fav_action_btn = ctk.CTkButton(self.control_card, text="☆", width=50, height=40, fg_color="#333", command=self.add_favorite)
+        self.fav_action_btn.grid(row=0, column=1, padx=(0, 10), pady=10)
 
-        ctk.CTkLabel(action_frame, text="TIMEFRAME & ACTION", font=ctk.CTkFont(size=10, weight="bold"), text_color="gray").pack(anchor="e")
-        
-        self.action_row = ctk.CTkFrame(action_frame, fg_color="transparent")
-        self.action_row.pack(anchor="e")
-
-        # Segmented Button for Timeframe
+        # Element 3: Timeframe (Segmented)
         self.timeframe_var = ctk.StringVar(value="daily")
-        self.tf_seg_btn = ctk.CTkSegmentedButton(self.action_row, values=["Daily", "Weekly", "Monthly"], 
-                                                 variable=self.timeframe_var, width=200, height=35, 
-                                                 selected_color="#1F6AA5", selected_hover_color="#144870")
-        self.tf_seg_btn.pack(side="left", padx=(0, 15))
+        self.tf_seg_btn = ctk.CTkSegmentedButton(self.control_card, values=["Daily", "Weekly", "Monthly"], 
+                                                 variable=self.timeframe_var, width=250, height=40, 
+                                                 selected_color="#1F6AA5", selected_hover_color="#144870", font=("Arial", 12, "bold"))
+        self.tf_seg_btn.grid(row=0, column=3, padx=10, pady=10)
 
-        # Main Analyze Button (Cyberpunk Blue / Emerald Green)
-        self.analyze_btn = ctk.CTkButton(self.action_row, text="RUN ANALYSIS ⚡", width=180, height=35, 
-                                       font=ctk.CTkFont(size=13, weight="bold"),
+        # Element 4: Run Analysis Button (Accent Color, Large)
+        self.analyze_btn = ctk.CTkButton(self.control_card, text="RUN ANALYSIS ⚡", width=200, height=40, 
+                                       font=ctk.CTkFont(size=14, weight="bold"),
                                        fg_color="#2CC985", hover_color="#25A96E", text_color="black", # Emerald Green
                                        command=self.start_analysis_thread)
-        self.analyze_btn.pack(side="left")
+        self.analyze_btn.grid(row=0, column=4, padx=(10, 20), pady=10)
 
         # Progress Bar (Attached to bottom of card)
-        self.progress_bar = ctk.CTkProgressBar(self.control_card, height=3, progress_color="#2CC985", width=500)
+        self.progress_bar = ctk.CTkProgressBar(self.control_card, height=4, progress_color="#2CC985", width=500)
         self.progress_bar.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
         self.progress_bar.set(0)
 
         # --- 2. OUTPUT AREA (Tabs) ---
-        self.output_tabview = ctk.CTkTabview(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
+        self.output_tabview = ctk.CTkTabview(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333", segmented_button_selected_color="#1F6AA5")
         self.output_tabview.grid(row=1, column=0, sticky="nsew")
         
         # Create Tabs
@@ -222,33 +212,59 @@ class StockSignalApp(ctk.CTk):
         self.tab_logs = self.output_tabview.add("🤖 SYSTEM LOGS")
         self.tab_info = self.output_tabview.add("ℹ️ INFO")
 
-        # Tab 1: Preview (Result & Sentiment)
+        # --- TAB 1: PREVIEW LAYOUT ---
         self.tab_preview.grid_columnconfigure(0, weight=1)
-        self.tab_preview.grid_rowconfigure(1, weight=1)
+        self.tab_preview.grid_rowconfigure(1, weight=1) # Textbox area
         
-        # Sentiment Header inside Preview
+        # Row 0: Sentiment Header (Big UI)
         self.sent_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
-        self.sent_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+        self.sent_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
         
-        ctk.CTkLabel(self.sent_frame, text="CONFIDENCE SCORE:", font=("Arial", 12, "bold"), text_color="gray").pack(side="left")
-        self.sentiment_val_label = ctk.CTkLabel(self.sent_frame, text="N/A", font=("Arial", 14, "bold"), text_color="white")
-        self.sentiment_val_label.pack(side="left", padx=10)
+        ctk.CTkLabel(self.sent_frame, text="CONFIDENCE SCORE", font=("Arial", 12, "bold"), text_color="gray").pack(anchor="w")
         
-        self.sentiment_bar = ctk.CTkProgressBar(self.sent_frame, width=200, height=12)
-        self.sentiment_bar.pack(side="left", padx=10)
+        # Score Container
+        score_container = ctk.CTkFrame(self.sent_frame, fg_color="transparent")
+        score_container.pack(anchor="w", fill="x", pady=(5, 0))
+        
+        self.sentiment_val_label = ctk.CTkLabel(score_container, text="--/100", font=("Arial", 32, "bold"), text_color="gray")
+        self.sentiment_val_label.pack(side="left", padx=(0, 15))
+        
+        self.sentiment_bar = ctk.CTkProgressBar(score_container, width=400, height=15, corner_radius=8)
+        self.sentiment_bar.pack(side="left", fill="x", expand=True)
         self.sentiment_bar.set(0)
 
-        # Action Buttons (Send/Copy)
-        self.send_btn = ctk.CTkButton(self.sent_frame, text="Send WhatsApp 📲", height=28, fg_color="#1F6AA5", command=self.send_whatsapp, state="disabled")
-        self.send_btn.pack(side="right")
-        self.copy_btn = ctk.CTkButton(self.sent_frame, text="Copy 📋", height=28, fg_color="#444", width=60, command=self.copy_to_clipboard)
-        self.copy_btn.pack(side="right", padx=10)
+        # Row 1: Content Area (Placeholder + Textbox)
+        self.content_area = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
+        self.content_area.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self.content_area.grid_rowconfigure(0, weight=1)
+        self.content_area.grid_columnconfigure(0, weight=1)
 
-        # Main Textbox
-        self.preview_textbox = ctk.CTkTextbox(self.tab_preview, font=("Consolas", 13), fg_color="#111", text_color="#ddd", corner_radius=5)
-        self.preview_textbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        # 1. Empty State Placeholder
+        self.placeholder_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        self.placeholder_frame.grid(row=0, column=0, sticky="nsew")
+        
+        ctk.CTkLabel(self.placeholder_frame, text="🔍", font=("Arial", 48)).pack(pady=(80, 10))
+        ctk.CTkLabel(self.placeholder_frame, text="Enter a Ticker to Begin Analysis", font=("Arial", 16, "bold"), text_color="gray").pack()
 
-        # Tab 2: Logs (Terminal Style)
+        # 2. Main Textbox (Hidden Initially)
+        self.preview_textbox = ctk.CTkTextbox(self.content_area, font=("Consolas", 13), fg_color="#111", text_color="#ddd", corner_radius=5)
+        # We don't grid it yet, logic will switch it
+
+        # Row 2: Action Buttons (Bottom Right)
+        self.action_button_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
+        self.action_button_frame.grid(row=2, column=0, sticky="e", padx=20, pady=15)
+
+        self.copy_btn = ctk.CTkButton(self.action_button_frame, text="Copy Text 📋", height=35, width=120, 
+                                    fg_color="#444", hover_color="#555", 
+                                    command=self.copy_to_clipboard)
+        self.copy_btn.pack(side="left", padx=(0, 10))
+
+        self.send_btn = ctk.CTkButton(self.action_button_frame, text="Send WhatsApp 📲", height=35, width=160, 
+                                    fg_color="#1F6AA5", hover_color="#144870", font=("Arial", 12, "bold"),
+                                    command=self.send_whatsapp, state="disabled")
+        self.send_btn.pack(side="left")
+
+        # --- TAB 2: LOGS ---
         self.tab_logs.grid_columnconfigure(0, weight=1)
         self.tab_logs.grid_rowconfigure(0, weight=1)
         
@@ -256,7 +272,7 @@ class StockSignalApp(ctk.CTk):
         self.console_textbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.console_textbox.configure(state="disabled")
 
-        # Tab 3: Info
+        # --- TAB 3: INFO ---
         ctk.CTkLabel(self.tab_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).pack(pady=20)
         self.group_btn = ctk.CTkButton(self.tab_info, text="Scan WhatsApp Group IDs", command=self.fetch_groups)
         self.group_btn.pack()
@@ -434,8 +450,14 @@ class StockSignalApp(ctk.CTk):
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
         
-        # Clear preview text before starting new analysis
+        # Reset Preview UI
         self.preview_textbox.delete("1.0", "end")
+        self.preview_textbox.grid_forget() # Hide textbox
+        self.placeholder_frame.grid(row=0, column=0, sticky="nsew") # Show placeholder (or loading spinner if we had one)
+        
+        # Reset Sentiment
+        self.sentiment_bar.set(0)
+        self.sentiment_val_label.configure(text="--/100", text_color="gray")
 
         threading.Thread(target=self.run_analysis_safe, args=(ticker, timeframe), daemon=True).start()
 
@@ -448,6 +470,11 @@ class StockSignalApp(ctk.CTk):
             )
             
             self.current_chart_path = chart_path
+            
+            # Switch UI to Result Mode
+            self.placeholder_frame.grid_forget()
+            self.preview_textbox.grid(row=0, column=0, sticky="nsew")
+            
             self.preview_textbox.insert("end", final_message)
             
             # Switch to Preview Tab
