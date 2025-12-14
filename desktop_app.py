@@ -19,8 +19,8 @@ class StockSignalApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("StockSignal Intelligence (Antigravity Edition)")
-        self.geometry("950x750")
+        self.title("StockSignal Intelligence (Bloomberg Edition)")
+        self.geometry("1100x800")
 
         # Initialize Controller
         self.controller = StockAppController(log_callback=self.log_ui)
@@ -52,38 +52,40 @@ class StockSignalApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def setup_sidebar(self):
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar_frame = ctk.CTkFrame(self, width=220, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(6, weight=1) # Spacer
+        self.sidebar_frame.grid_rowconfigure(7, weight=1) # Spacer push to bottom
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="StockSignal\nIntelligence", font=ctk.CTkFont(size=20, weight="bold"))
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        # Logo / Title
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="STOCK\nINTELLIGENCE", font=ctk.CTkFont(size=22, weight="bold"))
+        self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 10))
 
-        self.status_label = ctk.CTkLabel(self.sidebar_frame, text="Status: Init...", text_color="gray")
-        self.status_label.grid(row=1, column=0, padx=20, pady=10)
+        # Status
+        self.status_label = ctk.CTkLabel(self.sidebar_frame, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=11))
+        self.status_label.grid(row=1, column=0, padx=20, pady=5)
         
         # QR Button
-        self.qr_btn = ctk.CTkButton(self.sidebar_frame, text="📱 Scan QR WhatsApp", command=self.show_qr_modal, fg_color="#333")
+        self.qr_btn = ctk.CTkButton(self.sidebar_frame, text="LINK WHATSAPP", command=self.show_qr_modal, fg_color="#333", border_width=1, border_color="gray")
         self.qr_btn.grid(row=2, column=0, padx=20, pady=10)
         
-        # Logout Button (initially hidden)
-        self.logout_btn = ctk.CTkButton(self.sidebar_frame, text="🚪 Logout WhatsApp", command=self.logout_whatsapp, fg_color="#800000", hover_color="red")
-        self.logout_btn.grid(row=2, column=0, padx=20, pady=10)
-        self.logout_btn.grid_remove()
-
         # Favorites Section
-        self.fav_label = ctk.CTkLabel(self.sidebar_frame, text="⭐ Favorit:", font=ctk.CTkFont(size=14, weight="bold"))
-        self.fav_label.grid(row=3, column=0, padx=20, pady=(20, 5), sticky="w")
+        self.fav_label = ctk.CTkLabel(self.sidebar_frame, text="FAVORITE TICKERS", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
+        self.fav_label.grid(row=3, column=0, padx=20, pady=(30, 5), sticky="w")
 
-        self.fav_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=160, height=200)
+        self.fav_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=180, height=250, fg_color="transparent")
         self.fav_frame.grid(row=4, column=0, padx=10, pady=5)
         
         # History Section
-        self.hist_label = ctk.CTkLabel(self.sidebar_frame, text="🕒 Riwayat:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.hist_label = ctk.CTkLabel(self.sidebar_frame, text="RECENT HISTORY", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
         self.hist_label.grid(row=5, column=0, padx=20, pady=(20, 5), sticky="w")
         
-        self.hist_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=160, height=150)
+        self.hist_frame = ctk.CTkScrollableFrame(self.sidebar_frame, width=180, height=150, fg_color="transparent")
         self.hist_frame.grid(row=6, column=0, padx=10, pady=5)
+
+        # Logout Button (Bottom)
+        self.logout_btn = ctk.CTkButton(self.sidebar_frame, text="DISCONNECT WA", command=self.logout_whatsapp, fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000")
+        self.logout_btn.grid(row=8, column=0, padx=20, pady=20)
+        self.logout_btn.grid_remove() # Hidden initially
 
     def update_sidebar_lists(self):
         # Refresh Favorites
@@ -92,20 +94,21 @@ class StockSignalApp(ctk.CTk):
             
         favorites = self.controller.get_favorites()
         if not favorites:
-            ctk.CTkLabel(self.fav_frame, text="Belum ada favorit", text_color="gray").pack()
+            ctk.CTkLabel(self.fav_frame, text="No Favorites", text_color="gray", font=("Arial", 10)).pack()
         else:
             for ticker in favorites:
                 # Row frame
                 row = ctk.CTkFrame(self.fav_frame, fg_color="transparent")
                 row.pack(fill="x", pady=2)
                 
-                # Ticker Button (Load)
-                btn = ctk.CTkButton(row, text=ticker, width=100, fg_color="#444", 
+                # Ticker Button (Load) - Style: Menu Item
+                btn = ctk.CTkButton(row, text=f"★ {ticker}", width=120, height=28, anchor="w", fg_color="transparent", hover_color="#333",
+                                  font=ctk.CTkFont(size=12),
                                   command=lambda t=ticker: self.load_ticker(t))
                 btn.pack(side="left", padx=2)
                 
                 # Delete Button
-                del_btn = ctk.CTkButton(row, text="X", width=20, fg_color="#800000", hover_color="red",
+                del_btn = ctk.CTkButton(row, text="×", width=25, height=25, fg_color="transparent", hover_color="#500", text_color="gray",
                                       command=lambda t=ticker: self.remove_favorite(t))
                 del_btn.pack(side="right", padx=2)
 
@@ -115,19 +118,18 @@ class StockSignalApp(ctk.CTk):
             
         history = self.controller.get_history(limit=15)
         if not history:
-            ctk.CTkLabel(self.hist_frame, text="Belum ada riwayat", text_color="gray").pack()
+            ctk.CTkLabel(self.hist_frame, text="No History", text_color="gray", font=("Arial", 10)).pack()
         else:
             for ticker in history:
-                btn = ctk.CTkButton(self.hist_frame, text=ticker, fg_color="transparent", border_width=1,
+                btn = ctk.CTkButton(self.hist_frame, text=f"• {ticker}", height=24, anchor="w", fg_color="transparent", hover_color="#333",
+                                  text_color="#ccc", font=ctk.CTkFont(size=11),
                                   command=lambda t=ticker: self.load_ticker(t))
-                btn.pack(fill="x", pady=2)
+                btn.pack(fill="x", pady=1)
 
     def load_ticker(self, ticker):
         self.ticker_entry.delete(0, "end")
         self.ticker_entry.insert(0, ticker)
         self.update_favorite_btn_state(ticker)
-        # Optional: Auto start analysis? Maybe not, let user decide.
-        # self.start_analysis_thread()
 
     def add_favorite(self):
         ticker = self.ticker_entry.get().strip().upper()
@@ -139,115 +141,132 @@ class StockSignalApp(ctk.CTk):
     def remove_favorite(self, ticker):
         self.controller.remove_favorite(ticker)
         self.update_sidebar_lists()
-        # If current input matches, update button state
         current = self.ticker_entry.get().strip().upper()
         if current == ticker:
             self.update_favorite_btn_state(current)
 
     def update_favorite_btn_state(self, ticker):
         if not ticker:
-            self.fav_action_btn.configure(state="disabled", text="⭐")
+            self.fav_action_btn.configure(state="disabled", text="★")
             return
             
         self.fav_action_btn.configure(state="normal")
         if self.controller.is_favorite(ticker):
-            self.fav_action_btn.configure(text="★ Favorit", fg_color="gold", text_color="black", command=lambda: self.remove_favorite(ticker))
+            self.fav_action_btn.configure(text="★ Saved", fg_color="#D4AF37", text_color="black", hover_color="#C5A028", command=lambda: self.remove_favorite(ticker))
         else:
-            self.fav_action_btn.configure(text="☆ Add Fav", fg_color="transparent", text_color="white", command=self.add_favorite)
+            self.fav_action_btn.configure(text="☆ Save", fg_color="#333", text_color="white", hover_color="#444", command=self.add_favorite)
 
     def setup_main_area(self):
+        # Main Layout: 2 Rows. Top = Control Card, Bottom = Tabview Output
         self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.main_frame.grid_rowconfigure(1, weight=1) # Bottom expands
+        self.main_frame.grid_columnconfigure(0, weight=1)
 
-        # 1. Input Section
-        self.input_label = ctk.CTkLabel(self.main_frame, text="Kode Saham / Ticker (Contoh: BREN, DEWI)", font=ctk.CTkFont(size=14))
-        self.input_label.pack(anchor="w", pady=(0, 5))
+        # --- 1. CONTROL CARD (Top) ---
+        self.control_card = ctk.CTkFrame(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
+        self.control_card.grid(row=0, column=0, sticky="ew", pady=(0, 20), ipady=15)
+        self.control_card.grid_columnconfigure(1, weight=1)
 
-        # Input Row Frame
-        input_row = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        input_row.pack(anchor="w", fill="x", pady=(0, 10))
-
-        self.ticker_entry = ctk.CTkEntry(input_row, placeholder_text="Masukkan Ticker...", width=300)
+        # Ticker Input Group
+        input_frame = ctk.CTkFrame(self.control_card, fg_color="transparent")
+        input_frame.pack(side="left", padx=20, fill="y")
+        
+        ctk.CTkLabel(input_frame, text="TICKER SYMBOL", font=ctk.CTkFont(size=10, weight="bold"), text_color="gray").pack(anchor="w")
+        
+        self.input_row = ctk.CTkFrame(input_frame, fg_color="transparent")
+        self.input_row.pack(anchor="w")
+        
+        self.ticker_entry = ctk.CTkEntry(self.input_row, placeholder_text="e.g., BBCA", width=120, height=35, font=("Arial", 16, "bold"), border_color="gray")
         self.ticker_entry.pack(side="left", padx=(0, 10))
         self.ticker_entry.bind('<Return>', self.start_analysis_thread)
         self.ticker_entry.bind('<KeyRelease>', lambda e: self.update_favorite_btn_state(self.ticker_entry.get().strip().upper()))
-
-        # Favorite Toggle Button
-        self.fav_action_btn = ctk.CTkButton(input_row, text="☆ Add Fav", width=100, command=self.add_favorite)
+        
+        self.fav_action_btn = ctk.CTkButton(self.input_row, text="☆ Save", width=80, height=35, fg_color="#333", command=self.add_favorite)
         self.fav_action_btn.pack(side="left")
 
-        # Timeframe Selection Frame
+        # Timeframe & Action Group
+        action_frame = ctk.CTkFrame(self.control_card, fg_color="transparent")
+        action_frame.pack(side="right", padx=20, fill="y")
+
+        ctk.CTkLabel(action_frame, text="TIMEFRAME & ACTION", font=ctk.CTkFont(size=10, weight="bold"), text_color="gray").pack(anchor="e")
+        
+        self.action_row = ctk.CTkFrame(action_frame, fg_color="transparent")
+        self.action_row.pack(anchor="e")
+
+        # Segmented Button for Timeframe
         self.timeframe_var = ctk.StringVar(value="daily")
-        timeframe_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        timeframe_frame.pack(anchor="w", pady=(0, 10))
-        
-        ctk.CTkLabel(timeframe_frame, text="Timeframe:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 10))
-        
-        self.tf_daily = ctk.CTkRadioButton(timeframe_frame, text="Daily", variable=self.timeframe_var, value="daily")
-        self.tf_daily.pack(side="left", padx=10)
-        
-        self.tf_weekly = ctk.CTkRadioButton(timeframe_frame, text="Weekly", variable=self.timeframe_var, value="weekly")
-        self.tf_weekly.pack(side="left", padx=10)
-        
-        self.tf_monthly = ctk.CTkRadioButton(timeframe_frame, text="Monthly", variable=self.timeframe_var, value="monthly")
-        self.tf_monthly.pack(side="left", padx=10)
+        self.tf_seg_btn = ctk.CTkSegmentedButton(self.action_row, values=["Daily", "Weekly", "Monthly"], 
+                                                 variable=self.timeframe_var, width=200, height=35, 
+                                                 selected_color="#1F6AA5", selected_hover_color="#144870")
+        self.tf_seg_btn.pack(side="left", padx=(0, 15))
 
-        self.analyze_btn = ctk.CTkButton(self.main_frame, text="🚀 Analisa Lengkap (Deep Dive)", command=self.start_analysis_thread)
-        self.analyze_btn.pack(anchor="w", pady=(0, 10))
+        # Main Analyze Button (Cyberpunk Blue / Emerald Green)
+        self.analyze_btn = ctk.CTkButton(self.action_row, text="RUN ANALYSIS ⚡", width=180, height=35, 
+                                       font=ctk.CTkFont(size=13, weight="bold"),
+                                       fg_color="#2CC985", hover_color="#25A96E", text_color="black", # Emerald Green
+                                       command=self.start_analysis_thread)
+        self.analyze_btn.pack(side="left")
 
-        # Sentiment Meter (New)
-        sentiment_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        sentiment_frame.pack(anchor="w", fill="x", pady=(0, 5))
-        ctk.CTkLabel(sentiment_frame, text="Sentiment Score:", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
-        self.sentiment_label = ctk.CTkLabel(sentiment_frame, text="N/A", font=ctk.CTkFont(size=12))
-        self.sentiment_label.pack(side="left", padx=5)
-        
-        self.sentiment_bar = ctk.CTkProgressBar(self.main_frame, width=300, progress_color="gray")
-        self.sentiment_bar.pack(anchor="w", pady=(0, 10))
-        self.sentiment_bar.set(0.5) # Default 50%
-
-        # Progress Bar (Analysis)
-        self.progress_bar = ctk.CTkProgressBar(self.main_frame, width=300)
-        self.progress_bar.pack(anchor="w", pady=(0, 20))
+        # Progress Bar (Attached to bottom of card)
+        self.progress_bar = ctk.CTkProgressBar(self.control_card, height=3, progress_color="#2CC985", width=500)
+        self.progress_bar.place(relx=0, rely=1.0, anchor="sw", relwidth=1.0)
         self.progress_bar.set(0)
 
-        # 2. Console / Logs
-        self.console_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        self.console_frame.pack(fill="x", pady=(0, 5))
+        # --- 2. OUTPUT AREA (Tabs) ---
+        self.output_tabview = ctk.CTkTabview(self.main_frame, corner_radius=10, fg_color="#1a1a1a", border_width=1, border_color="#333")
+        self.output_tabview.grid(row=1, column=0, sticky="nsew")
         
-        self.console_label = ctk.CTkLabel(self.console_frame, text="Proses Berpikir AI (Logs)", font=ctk.CTkFont(size=14, weight="bold"))
-        self.console_label.pack(side="left")
-        
-        self.group_btn = ctk.CTkButton(self.console_frame, text="🔍 Cari ID Grup WhatsApp", width=150, height=24, fg_color="#444", command=self.fetch_groups)
-        self.group_btn.pack(side="right")
+        # Create Tabs
+        self.tab_preview = self.output_tabview.add("📊 REPORT PREVIEW")
+        self.tab_logs = self.output_tabview.add("🤖 SYSTEM LOGS")
+        self.tab_info = self.output_tabview.add("ℹ️ INFO")
 
-        self.console_textbox = ctk.CTkTextbox(self.main_frame, height=150)
-        self.console_textbox.pack(fill="x", pady=(0, 20))
+        # Tab 1: Preview (Result & Sentiment)
+        self.tab_preview.grid_columnconfigure(0, weight=1)
+        self.tab_preview.grid_rowconfigure(1, weight=1)
+        
+        # Sentiment Header inside Preview
+        self.sent_frame = ctk.CTkFrame(self.tab_preview, fg_color="transparent")
+        self.sent_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+        
+        ctk.CTkLabel(self.sent_frame, text="CONFIDENCE SCORE:", font=("Arial", 12, "bold"), text_color="gray").pack(side="left")
+        self.sentiment_val_label = ctk.CTkLabel(self.sent_frame, text="N/A", font=("Arial", 14, "bold"), text_color="white")
+        self.sentiment_val_label.pack(side="left", padx=10)
+        
+        self.sentiment_bar = ctk.CTkProgressBar(self.sent_frame, width=200, height=12)
+        self.sentiment_bar.pack(side="left", padx=10)
+        self.sentiment_bar.set(0)
+
+        # Action Buttons (Send/Copy)
+        self.send_btn = ctk.CTkButton(self.sent_frame, text="Send WhatsApp 📲", height=28, fg_color="#1F6AA5", command=self.send_whatsapp, state="disabled")
+        self.send_btn.pack(side="right")
+        self.copy_btn = ctk.CTkButton(self.sent_frame, text="Copy 📋", height=28, fg_color="#444", width=60, command=self.copy_to_clipboard)
+        self.copy_btn.pack(side="right", padx=10)
+
+        # Main Textbox
+        self.preview_textbox = ctk.CTkTextbox(self.tab_preview, font=("Consolas", 13), fg_color="#111", text_color="#ddd", corner_radius=5)
+        self.preview_textbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+
+        # Tab 2: Logs (Terminal Style)
+        self.tab_logs.grid_columnconfigure(0, weight=1)
+        self.tab_logs.grid_rowconfigure(0, weight=1)
+        
+        self.console_textbox = ctk.CTkTextbox(self.tab_logs, font=("Consolas", 11), fg_color="#000", text_color="#0f0", corner_radius=5)
+        self.console_textbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.console_textbox.configure(state="disabled")
 
-        # 3. Preview Section
-        self.preview_label = ctk.CTkLabel(self.main_frame, text="Preview Pesan WhatsApp", font=ctk.CTkFont(size=14, weight="bold"))
-        self.preview_label.pack(anchor="w", pady=(0, 5))
-
-        self.preview_textbox = ctk.CTkTextbox(self.main_frame, height=200)
-        self.preview_textbox.pack(fill="both", expand=True, pady=(0, 10))
-
-        # 4. Action Buttons
-        self.actions_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        self.actions_frame.pack(fill="x")
-
-        self.send_btn = ctk.CTkButton(self.actions_frame, text="📲 Kirim ke WhatsApp", fg_color="green", hover_color="darkgreen", command=self.send_whatsapp, state="disabled")
-        self.send_btn.pack(side="right")
-
-        self.copy_btn = ctk.CTkButton(self.actions_frame, text="📋 Salin Teks", fg_color="gray", hover_color="darkgray", command=self.copy_to_clipboard)
-        self.copy_btn.pack(side="right", padx=10)
+        # Tab 3: Info
+        ctk.CTkLabel(self.tab_info, text="Stock Intelligence v2.0", font=("Arial", 20, "bold")).pack(pady=20)
+        self.group_btn = ctk.CTkButton(self.tab_info, text="Scan WhatsApp Group IDs", command=self.fetch_groups)
+        self.group_btn.pack()
 
     # --- LOGIC & BINDINGS ---
 
     def log_ui(self, message):
         """Callback for Controller to log to UI"""
         self.console_textbox.configure(state="normal")
-        self.console_textbox.insert("end", message + "\n")
+        self.console_textbox.insert("end", f"> {message}\n")
         self.console_textbox.see("end")
         self.console_textbox.configure(state="disabled")
 
@@ -264,10 +283,9 @@ class StockSignalApp(ctk.CTk):
         def _check():
             is_healthy = self.controller.check_service_health()
             if is_healthy:
-                self.status_label.configure(text="Sistem: ONLINE ✅", text_color="green")
+                self.status_label.configure(text="SYSTEM: ONLINE ✅", text_color="#2CC985")
             else:
-                self.status_label.configure(text="Sistem: OFFLINE ❌", text_color="red")
-                # self.log_ui("⚠️ Layanan WhatsApp belum siap. Mencoba lagi...") # Suppress repeat log
+                self.status_label.configure(text="SYSTEM: OFFLINE ❌", text_color="red")
                 self.after(5000, self.check_service_health) # Retry
         
         threading.Thread(target=_check, daemon=True).start()
@@ -283,7 +301,7 @@ class StockSignalApp(ctk.CTk):
                     qr_string = data.get('qr')
                     
                     if status == 'connected':
-                        self.status_label.configure(text="WhatsApp: Connected 🔗", text_color="cyan")
+                        self.status_label.configure(text="WA: CONNECTED 🔗", text_color="#2CC985")
                         self.qr_btn.grid_remove()
                         self.logout_btn.grid()
                         
@@ -292,7 +310,7 @@ class StockSignalApp(ctk.CTk):
                             self.qr_window = None
                     
                     elif status == 'scanning' and qr_string:
-                        self.status_label.configure(text="WhatsApp: Scan QR 📷", text_color="orange")
+                        self.status_label.configure(text="WA: SCAN QR 📷", text_color="orange")
                         self.qr_btn.grid()
                         self.logout_btn.grid_remove()
                         
@@ -300,7 +318,7 @@ class StockSignalApp(ctk.CTk):
                             self.update_qr_image(qr_string)
                             
                     elif status == 'initializing':
-                        self.status_label.configure(text="WhatsApp: Init...", text_color="gray")
+                        self.status_label.configure(text="WA: INIT...", text_color="gray")
                         self.qr_btn.grid()
                         self.logout_btn.grid_remove()
                         
@@ -319,7 +337,7 @@ class StockSignalApp(ctk.CTk):
             self.qr_window.geometry("400x450")
             self.qr_window.attributes("-topmost", True)
             
-            label = ctk.CTkLabel(self.qr_window, text="Buka WhatsApp -> Linked Devices -> Link Device\nLalu Scan QR Code dibawah:", font=("Arial", 14))
+            label = ctk.CTkLabel(self.qr_window, text="Buka WhatsApp -> Linked Devices\nLalu Scan QR Code:", font=("Arial", 14))
             label.pack(pady=20)
             
             self.qr_image_label = ctk.CTkLabel(self.qr_window, text="Menunggu QR...", width=250, height=250)
@@ -373,15 +391,14 @@ class StockSignalApp(ctk.CTk):
             pass # Suppress QR errors in production UI if they are transient
 
     def logout_whatsapp(self):
-        if messagebox.askyesno("Logout", "Apakah anda yakin ingin logout dari WhatsApp?"):
-            self.log_ui("🚪 Logging out WhatsApp...")
+        if messagebox.askyesno("Logout", "Putuskan koneksi WhatsApp?"):
+            self.log_ui("🚪 Disconnecting WhatsApp...")
             def _logout():
                 if self.controller.logout_whatsapp():
-                    self.log_ui("✅ Logout berhasil. Silakan scan ulang.")
-                    self.status_label.configure(text="WhatsApp: Disconnected", text_color="red")
-                    # UI update happens in poll_qr_code loop
+                    self.log_ui("✅ Disconnected.")
+                    self.status_label.configure(text="WA: DISCONNECTED", text_color="red")
                 else:
-                    self.log_ui("❌ Gagal logout.")
+                    self.log_ui("❌ Failed to disconnect.")
             
             threading.Thread(target=_logout, daemon=True).start()
 
@@ -389,17 +406,17 @@ class StockSignalApp(ctk.CTk):
     # --- CORE FEATURES ---
     
     def fetch_groups(self):
-        self.log_ui("🔍 Mengambil daftar grup...")
+        self.log_ui("🔍 Fetching WhatsApp Groups...")
         def _run():
             groups = self.controller.fetch_groups()
             if not groups:
-                self.log_ui("⚠️ Tidak ada grup / Gagal koneksi.")
+                self.log_ui("⚠️ No groups found or connection failed.")
                 return
             
-            self.log_ui("\n=== DAFTAR GRUP WHATSAPP ===")
+            self.log_ui("\n=== WHATSAPP GROUPS ===")
             for g in groups:
                 self.log_ui(f"📁 {g['name']} | ID: {g['id']}")
-            self.log_ui("ℹ️ Copy ID yang berakhiran @g.us ke .env")
+            self.log_ui("ℹ️ Copy Group ID ending in @g.us to .env")
             
         threading.Thread(target=_run, daemon=True).start()
 
@@ -408,10 +425,11 @@ class StockSignalApp(ctk.CTk):
         if not ticker:
             return
         
-        timeframe = self.timeframe_var.get()
+        timeframe = self.timeframe_var.get().lower() # Convert segmented val to lowercase
 
         self.toggle_inputs(False)
         self.progress_bar.set(0)
+        self.output_tabview.set("🤖 SYSTEM LOGS") # Switch to logs during process
         self.console_textbox.configure(state="normal")
         self.console_textbox.delete("1.0", "end")
         self.console_textbox.configure(state="disabled")
@@ -432,6 +450,9 @@ class StockSignalApp(ctk.CTk):
             self.current_chart_path = chart_path
             self.preview_textbox.insert("end", final_message)
             
+            # Switch to Preview Tab
+            self.output_tabview.set("📊 REPORT PREVIEW")
+            
             # Update Sentiment UI
             self.update_sentiment_ui(sentiment_score)
             
@@ -442,6 +463,7 @@ class StockSignalApp(ctk.CTk):
             
         except Exception as e:
             self.log_ui(f"❌ CRITICAL ERROR: {e}")
+            self.output_tabview.set("🤖 SYSTEM LOGS")
         finally:
             self.toggle_inputs(True)
 
@@ -449,19 +471,24 @@ class StockSignalApp(ctk.CTk):
         # Score is 0-100
         val = score / 100.0
         self.sentiment_bar.set(val)
-        self.sentiment_label.configure(text=f"{score}/100")
+        self.sentiment_val_label.configure(text=f"{score}/100")
         
         # Color Logic
         if score >= 75:
             self.sentiment_bar.configure(progress_color="#00ff00") # Green
+            self.sentiment_val_label.configure(text_color="#00ff00")
         elif score >= 60:
             self.sentiment_bar.configure(progress_color="#9acd32") # Light Green
+            self.sentiment_val_label.configure(text_color="#9acd32")
         elif score <= 25:
             self.sentiment_bar.configure(progress_color="#ff0000") # Red
+            self.sentiment_val_label.configure(text_color="#ff0000")
         elif score <= 40:
             self.sentiment_bar.configure(progress_color="#ff4500") # Orange
+            self.sentiment_val_label.configure(text_color="#ff4500")
         else:
             self.sentiment_bar.configure(progress_color="#ffd700") # Gold/Yellow
+            self.sentiment_val_label.configure(text_color="#ffd700")
 
     def update_progress(self, val):
         self.progress_bar.set(val)
@@ -479,15 +506,15 @@ class StockSignalApp(ctk.CTk):
             messagebox.showerror("Error", "Set TARGET_PHONE di .env dulu!")
             return
             
-        self.log_ui(f"📲 Mengirim ke {phone}...")
+        self.log_ui(f"📲 Sending to {phone}...")
         
         def _send():
             try:
                 self.controller.send_whatsapp_message(phone, message, self.current_chart_path)
-                self.log_ui("✅ Terkirim!")
-                messagebox.showinfo("Sukses", "Pesan terkirim!")
+                self.log_ui("✅ Sent!")
+                messagebox.showinfo("Success", "Message sent to WhatsApp!")
             except Exception as e:
-                self.log_ui(f"❌ Gagal kirim: {e}")
+                self.log_ui(f"❌ Failed to send: {e}")
         
         threading.Thread(target=_send, daemon=True).start()
 
@@ -496,7 +523,7 @@ class StockSignalApp(ctk.CTk):
         if text:
             self.clipboard_clear()
             self.clipboard_append(text)
-            self.log_ui("📋 Copied.")
+            self.log_ui("📋 Text copied to clipboard.")
 
     def on_closing(self):
         self.controller.stop_wa_service()
