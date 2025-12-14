@@ -40,21 +40,18 @@ class GoApiClient:
             return False
 
     def _get_last_trading_day(self):
-        """Helper to get the last likely trading day (e.g., skip weekends)."""
+        """Helper to get the last likely trading day (yesterday/Friday)."""
         today = datetime.date.today()
-        weekday = today.weekday() # 0=Mon, 6=Sun
+        # Always go back 1 day first, because Broker Summary is EOD
+        last_trading = today - datetime.timedelta(days=1)
         
-        # If Sat (5) or Sun (6), go back to Friday
-        if weekday == 5: # Saturday
-            last_trading = today - datetime.timedelta(days=1)
-        elif weekday == 6: # Sunday
-            last_trading = today - datetime.timedelta(days=2)
-        else:
-            # Weekday
-            # If it's early morning, maybe data for today isn't ready?
-            # For simplicity, we try Today. If it returns empty, logic elsewhere could retry Yesterday.
-            # But let's default to Today for now.
-            last_trading = today
+        # If that lands on Sat/Sun, go back to Friday
+        weekday = last_trading.weekday() # 0=Mon, ... 5=Sat, 6=Sun
+        
+        if weekday == 5: # Saturday -> Friday
+            last_trading = last_trading - datetime.timedelta(days=1)
+        elif weekday == 6: # Sunday -> Friday (shouldn't happen if we subtract 1 from Mon, but good safety)
+            last_trading = last_trading - datetime.timedelta(days=2)
             
         return last_trading.strftime("%Y-%m-%d")
 
