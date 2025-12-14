@@ -49,7 +49,8 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(self.form_frame, text="AI Model (Gemini)", font=("Arial", 12, "bold"), text_color="gray").pack(anchor="w", pady=(10, 0))
         self.model_var = ctk.StringVar(value="gemini-2.0-flash-exp")
         self.combo_model = ctk.CTkComboBox(self.form_frame, width=400, variable=self.model_var, 
-                                         values=["gemini-2.0-flash-exp (Free/Fast)", "gemini-1.5-pro (Paid/Deep)", "gemini-1.5-flash (Balanced)"])
+                                         values=["gemini-2.0-flash-exp (Free/Fast)", "gemini-1.5-pro (Paid/Deep)", "gemini-1.5-flash (Balanced)"],
+                                         state="readonly") # Prevent manual typing
         self.combo_model.pack(anchor="w", pady=(5, 10), fill="x")
         
         # Save Button
