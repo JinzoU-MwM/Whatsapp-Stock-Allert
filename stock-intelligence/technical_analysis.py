@@ -262,7 +262,11 @@ def analyze_technical(ticker, timeframe="daily"):
     stop_loss = price - (2.0 * atr)
     target = price + (3.0 * atr)
     
-    # --- FIBONACCI ---
+    # --- CONFIDENCE SCORE & VERDICT ---
+    # We calculate a confidence score (0-100) based on available proxies
+    # Since we don't have real Broker/Foreign data yet, we use Proxy Bandarmology
+    
+    # --- RECALCULATE FIBONACCI (Required for Return) ---
     lookback = 120
     fib_slice = df.tail(lookback) if len(df) > lookback else df
     fib_high = fib_slice['High'].max()
@@ -273,6 +277,35 @@ def analyze_technical(ticker, timeframe="daily"):
         0.5: fib_low + (0.5*fib_diff), 0.618: fib_low + (0.618*fib_diff),
         0.786: fib_low + (0.786*fib_diff), 1.0: fib_high
     }
+    
+    # 1. Technical Score (40%)
+    tech_score = 50
+    if "Bullish" in trend: tech_score += 20
+    elif "Bearish" in trend: tech_score -= 20
+    if "Golden Cross" in macd_status: tech_score += 10
+    elif "Dead Cross" in macd_status: tech_score -= 10
+    if rsi > 50: tech_score += 5
+    if adx > 25: tech_score += 5 # Trend strength bonus
+
+    # 2. Bandar/Volume Score (40%)
+    bandar_score = 50
+    if "AKUMULASI" in sm_status: bandar_score += 30
+    elif "DISTRIBUSI" in sm_status: bandar_score -= 30
+    if vol_ratio > 1.5: bandar_score += 10
+    if mfi > 50 and obv > obv_ema: bandar_score += 10
+
+    # 3. Sentiment/Others (20%) - Default Neutral until AI updates it
+    sentiment_score = 50 
+    
+    # Final Calculation
+    final_score = (tech_score * 0.4) + (bandar_score * 0.4) + (sentiment_score * 0.2)
+    final_score = min(100, max(0, int(final_score)))
+    
+    verdict = "WAIT & SEE ⚠️"
+    if final_score >= 75: verdict = "STRONG BUY 🚀"
+    elif final_score >= 60: verdict = "BUY / ACCUMULATE ✅"
+    elif final_score <= 30: verdict = "STRONG SELL ❌"
+    elif final_score <= 45: verdict = "SELL / AVOID 🔻"
 
     return {
         "ticker": actual_ticker,
@@ -308,5 +341,7 @@ def analyze_technical(ticker, timeframe="daily"):
         "bb_lower": bb_lower,
         "bb_status": bb_status,
         "stop_loss": stop_loss,
-        "target": target
+        "target": target,
+        "final_score": final_score,
+        "verdict": verdict
     }

@@ -29,6 +29,7 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         Tugasmu adalah menganalisis data untuk saham {ticker}.
         
         1. DATA TEKNIKAL & VOLUME FLOW (DATAFAKTA):
+        - FINAL VERDICT: {ta_data.get('verdict', 'N/A')} (Score: {ta_data.get('final_score', 0)}/100)
         - Harga Terakhir: {ta_data['price']:.0f}
         - Tren Utama: {ta_data['trend']} (Weekly: {ta_data.get('major_trend', 'N/A')})
         - Kekuatan Tren (ADX): {ta_data.get('adx', 0):.2f} (Jika >25=Trending, <20=Sideways)

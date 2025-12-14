@@ -32,6 +32,9 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
     
     message = f"""🚨 *STOCK INTELLIGENCE: ${ticker}*
 
+🎯 *VERDICT: {ta_data.get('verdict', 'N/A')}*
+🔥 *Confidence Score: {ta_data.get('final_score', 0)}/100*
+
 📊 *DATA TEKNIKAL & VOLUME FLOW:*
 • *Tren:* {ta_data['trend']} {trend_emoji}
 • *Candle:* {ta_data.get('candle_pattern', '-')}
