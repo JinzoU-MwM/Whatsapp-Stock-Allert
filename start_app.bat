@@ -3,7 +3,7 @@ title StockSignal Launcher
 cd /d "%~dp0"
 
 echo ========================================================
-echo      StockSignal AI (Auto-Setup & Launch)
+echo      StockSignal AI (Auto-Setup ^& Launch)
 echo ========================================================
 
 :: --- 1. CHECK PYTHON ---
@@ -46,7 +46,7 @@ if %errorlevel% neq 0 (
 call npm --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Node.js is not installed!
-    echo Please install Node.js (LTS) from https://nodejs.org/
+    echo Please install Node.js ^(LTS^) from https://nodejs.org/
     echo This is required for the WhatsApp connection.
     pause
     exit
