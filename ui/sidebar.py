@@ -15,57 +15,59 @@ class Sidebar(ctk.CTkFrame):
 
     def setup_ui(self):
         # 1. Logo / Title
-        self.logo_label = ctk.CTkLabel(self, text="STOCK\nINTELLIGENCE", font=ctk.CTkFont(size=22, weight="bold"))
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 10))
+        self.logo_label = ctk.CTkLabel(self, text="STOCK\nINTELLIGENCE", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # 2. Navigation Menu
-        self.nav_label = ctk.CTkLabel(self, text="MENU", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
-        self.nav_label.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
+        self.nav_label = ctk.CTkLabel(self, text="MENU", font=ctk.CTkFont(size=11, weight="bold"), text_color="#aaa")
+        self.nav_label.grid(row=1, column=0, padx=20, pady=(5, 5), sticky="w")
 
         # Market Data Button (Active by default)
         self.btn_nav_market = ctk.CTkButton(self, text="📊 MARKET DATA", 
                                           fg_color="#1F6AA5", hover_color="#144870",
-                                          anchor="w", width=180,
+                                          anchor="w", width=180, height=30,
                                           command=self.app.show_market_view)
-        self.btn_nav_market.grid(row=2, column=0, padx=20, pady=5)
+        self.btn_nav_market.grid(row=2, column=0, padx=20, pady=2)
 
         # Portfolio Button (Inactive by default)
         self.btn_nav_portfolio = ctk.CTkButton(self, text="💼 PORTFOLIO", 
                                              fg_color="transparent", hover_color="#333", border_width=1, border_color="gray", text_color="gray",
-                                             anchor="w", width=180,
+                                             anchor="w", width=180, height=30,
                                              command=self.app.show_portfolio_view)
-        self.btn_nav_portfolio.grid(row=3, column=0, padx=20, pady=5)
+        self.btn_nav_portfolio.grid(row=3, column=0, padx=20, pady=2)
 
         # 3. Status
-        self.status_label = ctk.CTkLabel(self, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=11))
-        self.status_label.grid(row=4, column=0, padx=20, pady=(20, 5))
+        self.status_label = ctk.CTkLabel(self, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=10))
+        self.status_label.grid(row=4, column=0, padx=20, pady=(10, 5))
         
         # 4. QR Button (Hidden by default or shown if needed)
         self.qr_btn = ctk.CTkButton(self, text="LINK WHATSAPP", command=self.app.show_qr_modal, 
-                                  fg_color="#333", border_width=1, border_color="gray", width=180)
-        self.qr_btn.grid(row=5, column=0, padx=20, pady=10)
+                                  fg_color="#333", border_width=1, border_color="gray", width=180, height=30)
+        self.qr_btn.grid(row=5, column=0, padx=20, pady=5)
         
         # 5. Favorites Section
-        self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
-        self.fav_label.grid(row=6, column=0, padx=20, pady=(20, 5), sticky="w")
+        self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=11, weight="bold"), text_color="#aaa")
+        self.fav_label.grid(row=6, column=0, padx=20, pady=(15, 5), sticky="w")
 
-        self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=140, fg_color="transparent")
-        self.fav_frame.grid(row=7, column=0, padx=10, pady=5)
+        # REDUCED HEIGHT DRASTICALLY (140 -> 100)
+        self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=100, fg_color="transparent")
+        self.fav_frame.grid(row=7, column=0, padx=10, pady=2)
         
         # 6. History Section
-        self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
-        self.hist_label.grid(row=8, column=0, padx=20, pady=(20, 5), sticky="w")
+        self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=11, weight="bold"), text_color="#aaa")
+        self.hist_label.grid(row=8, column=0, padx=20, pady=(15, 5), sticky="w")
         
-        self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=120, fg_color="transparent")
-        self.hist_frame.grid(row=9, column=0, padx=10, pady=5)
+        # REDUCED HEIGHT DRASTICALLY (120 -> 80)
+        self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=80, fg_color="transparent")
+        self.hist_frame.grid(row=9, column=0, padx=10, pady=2)
         
         # 20. Logout Button (Sticky Bottom)
         self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, 
                                       fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000",
                                       width=180, height=35)
         
-        # FIX: Ensure it has enough vertical space and padding from bottom
-        self.logout_btn.grid(row=21, column=0, padx=20, pady=(10, 20), sticky="s")
+        # Reduced bottom padding (20 -> 10)
+        self.logout_btn.grid(row=21, column=0, padx=20, pady=(5, 10), sticky="s")
         self.logout_btn.grid_remove() # Hidden initially
 
     def update_lists(self):
