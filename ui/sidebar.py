@@ -40,9 +40,16 @@ class Sidebar(ctk.CTkFrame):
         self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=180, fg_color="transparent")
         self.fav_frame.grid(row=7, column=0, padx=10, pady=5)
         
+        # History Section
+        self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=12, weight="bold"), text_color="#aaa")
+        self.hist_label.grid(row=8, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=150, fg_color="transparent")
+        self.hist_frame.grid(row=9, column=0, padx=10, pady=5)
+        
         # Logout Button (Bottom)
         self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, fg_color="#330000", hover_color="#550000", border_width=1, border_color="#550000")
-        self.logout_btn.grid(row=9, column=0, padx=20, pady=20)
+        self.logout_btn.grid(row=10, column=0, padx=20, pady=20)
         self.logout_btn.grid_remove() # Hidden initially
 
     def update_lists(self):
@@ -68,6 +75,20 @@ class Sidebar(ctk.CTkFrame):
                 del_btn = ctk.CTkButton(row, text="×", width=25, height=25, fg_color="transparent", hover_color="#500", text_color="gray",
                                       command=lambda t=ticker: self.remove_favorite(t))
                 del_btn.pack(side="right", padx=2)
+
+        # Refresh History
+        for widget in self.hist_frame.winfo_children():
+            widget.destroy()
+            
+        history = self.controller.get_history(limit=15)
+        if not history:
+            ctk.CTkLabel(self.hist_frame, text="No History", text_color="gray", font=("Arial", 10)).pack()
+        else:
+            for ticker in history:
+                btn = ctk.CTkButton(self.hist_frame, text=f"• {ticker}", height=24, anchor="w", fg_color="transparent", hover_color="#333",
+                                  text_color="#ccc", font=ctk.CTkFont(size=11),
+                                  command=lambda t=ticker: self.app.load_ticker(t))
+                btn.pack(fill="x", pady=1)
 
     def remove_favorite(self, ticker):
         self.controller.remove_favorite(ticker)
