@@ -1,12 +1,85 @@
 import pandas as pd
 import numpy as np
+try:
+    from goapi_client import GoApiClient
+except ImportError:
+    GoApiClient = None
 
 class QuantAnalyzer:
-    def __init__(self):
+    def __init__(self, goapi_client=None):
+        self.goapi_client = goapi_client
         # Daftar Broker Retail (Contoh)
         self.retail_brokers = ['YP', 'PD', 'CC', 'NI', 'XC', 'XL', 'KK']
         # Daftar Broker Institusi/Asing (Contoh)
         self.insti_brokers = ['BK', 'ZP', 'AK', 'KZ', 'RX', 'CS', 'CG']
+
+    def fetch_real_bandarmology(self, ticker):
+        """
+        Fetches and analyzes real Broker Summary and Foreign Flow from GoAPI if available.
+        Returns a combined dictionary of scores and status.
+        """
+        if not self.goapi_client or not self.goapi_client.check_connection():
+            return None
+
+        print(f"   [Quant] Fetching Real Bandarmology Data for {ticker} from GoAPI...")
+        
+        # 1. Broker Summary
+        broker_data = self.goapi_client.get_broker_summary(ticker)
+        bs_result = self._process_goapi_broker_data(broker_data)
+        
+        # 2. Foreign Flow
+        foreign_data = self.goapi_client.get_foreign_flow(ticker)
+        ff_result = self._process_goapi_foreign_data(foreign_data)
+        
+        return {
+            "broker_summary": bs_result,
+            "foreign_flow": ff_result
+        }
+
+    def _process_goapi_broker_data(self, data):
+        """Parses GoAPI broker summary response into analysis format."""
+        if not data:
+            return {"status": "Neutral", "score": 0, "summary": "Data Broker N/A"}
+            
+        # Expecting list of dicts: [{'broker_code': 'YP', 'buy_vol': 100, 'sell_vol': 50, 'buy_avg': 1000, 'sell_avg': 1000}, ...]
+        # Transform to DataFrame for analyze_broker_summary
+        rows = []
+        for item in data:
+            code = item.get('broker_code') or item.get('code')
+            b_vol = float(item.get('buy_vol', 0))
+            s_vol = float(item.get('sell_vol', 0))
+            b_avg = float(item.get('buy_avg', 0))
+            s_avg = float(item.get('sell_avg', 0))
+            
+            if b_vol > 0:
+                rows.append({'Broker': code, 'Action': 'BUY', 'Volume': b_vol, 'AvgPrice': b_avg})
+            if s_vol > 0:
+                rows.append({'Broker': code, 'Action': 'SELL', 'Volume': s_vol, 'AvgPrice': s_avg})
+                
+        if not rows:
+            return {"status": "Neutral", "score": 0, "summary": "Data Broker Kosong"}
+            
+        df = pd.DataFrame(rows)
+        return self.analyze_broker_summary(df)
+
+    def _process_goapi_foreign_data(self, data):
+        """Parses GoAPI foreign flow response."""
+        if not data:
+            return {"status": "Unknown", "score": 0}
+            
+        # Expecting list: [{'date': '...', 'net_buy': ...}, ...]
+        # We need a DataFrame with 'NetForeignBuy' column
+        rows = []
+        for item in data:
+            net = float(item.get('net_foreign_buy') or item.get('net_buy') or item.get('foreign_net_buy', 0))
+            date = item.get('date')
+            rows.append({'Date': date, 'NetForeignBuy': net})
+            
+        if not rows:
+            return {"status": "Unknown", "score": 0}
+            
+        df = pd.DataFrame(rows)
+        return self.analyze_foreign_flow(df)
 
     def analyze_broker_summary(self, transaction_data):
         """

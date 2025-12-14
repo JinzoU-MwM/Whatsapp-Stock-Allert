@@ -1,0 +1,11 @@
+WhatsApp Service listening at http://localhost:3000
+Authenticated successfully.
+WhatsApp Client is ready!
+Image sent to 6289699778371-1576408282@g.us
+Image sent to 6289699778371-1576408282@g.us
+Error loading media: Error: Evaluation failed: t
+    at ExecutionContext._ExecutionContext_evaluate (d:\Codding\Project\Whatsapp-Stock-Allert\whatsapp-service\node_modules\puppeteer-core\lib\cjs\puppeteer\common\ExecutionContext.js:229:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async ExecutionContext.evaluate (d:\Codding\Project\Whatsapp-Stock-Allert\whatsapp-service\node_modules\puppeteer-core\lib\cjs\puppeteer\common\ExecutionContext.js:107:16)
+    at async Client.sendMessage (d:\Codding\Project\Whatsapp-Stock-Allert\whatsapp-service\node_modules\whatsapp-web.js\src\Client.js:1038:25)
+    at async d:\Codding\Project\Whatsapp-Stock-Allert\whatsapp-service\index.js:118:17

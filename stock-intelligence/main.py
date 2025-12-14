@@ -12,6 +12,11 @@ from technical_analysis import analyze_technical
 from catalyst_agent import get_ai_analysis
 from news_fetcher import fetch_stock_news
 from chart_generator import generate_chart
+from quant_engine import QuantAnalyzer
+try:
+    from goapi_client import GoApiClient
+except ImportError:
+    GoApiClient = None
 
 # Configuration
 WHATSAPP_SERVICE_URL = "http://localhost:3000/send"
@@ -40,6 +45,7 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 • *Candle:* {ta_data.get('candle_pattern', '-')}
 • *MACD:* {ta_data['macd_status']}
 • *Volume Flow:* {ta_data['bandar_status']}
+• *Foreign Flow:* {ta_data.get('foreign_status', 'N/A')}
 • *Indikasi:* {ta_data['bandar_action']}
 • *MFI (Money Flow):* {ta_data.get('mfi', 50):.2f}
 • *Holder Utama:* {ta_data.get('major_holders', 'N/A')}
@@ -100,6 +106,40 @@ def main():
     try:
         print("Running Technical Analysis...")
         ta_data = analyze_technical(ticker)
+        
+        # 1.5 Quant Analysis (Real Bandarmology if available)
+        goapi_key = os.getenv("GOAPI_API_KEY")
+        if goapi_key and GoApiClient:
+            print("Running Quant Analysis (GoAPI Real Data)...")
+            client = GoApiClient(goapi_key)
+            quant = QuantAnalyzer(client)
+            
+            real_bandar = quant.fetch_real_bandarmology(ticker)
+            if real_bandar:
+                print("   > Found Real Broker/Foreign Data!")
+                bs_data = real_bandar.get('broker_summary', {})
+                ff_data = real_bandar.get('foreign_flow', {})
+                
+                # Update Data
+                if bs_data.get('status') != "Neutral":
+                    ta_data['bandar_status'] = bs_data['status']
+                    ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
+                
+                # Update Verdict
+                tech_score = 50 
+                if "Bullish" in ta_data['trend']: tech_score += 20
+                if "Golden Cross" in ta_data['macd_status']: tech_score += 10
+                
+                final_res = quant.calculate_final_verdict(
+                    tech_score=tech_score,
+                    bandar_score=bs_data.get('bandar_score', 0),
+                    foreign_score=ff_data.get('foreign_score', 0)
+                )
+                
+                ta_data['final_score'] = final_res['final_score']
+                ta_data['verdict'] = final_res['verdict']
+                ta_data['foreign_status'] = ff_data.get('status', 'N/A')
+
     except Exception as e:
         print(f"Technical Analysis Failed: {e}")
         sys.exit(1)

@@ -8,6 +8,12 @@ from dotenv import load_dotenv
 
 # Import Logic
 from technical_analysis import analyze_technical
+from quant_engine import QuantAnalyzer
+try:
+    from goapi_client import GoApiClient
+except ImportError:
+    GoApiClient = None
+
 from catalyst_agent import get_ai_analysis
 from news_fetcher import fetch_stock_news
 from chart_generator import generate_chart
@@ -25,6 +31,13 @@ class StockAppController:
         
         load_dotenv()
         db_manager.init_db()
+        
+        # Initialize Quant Components
+        self.goapi_client = None
+        if os.getenv("GOAPI_API_KEY") and GoApiClient:
+            self.goapi_client = GoApiClient()
+            
+        self.quant_engine = QuantAnalyzer(self.goapi_client)
 
     def log(self, message):
         # Suppress logging in production unless it's a critical error or analysis step
@@ -148,6 +161,44 @@ class StockAppController:
             if progress_callback: progress_callback(0.3)
             ta_data = analyze_technical(ticker, timeframe=timeframe)
             
+            # 2.1 Quant Analysis (Real Bandarmology if available)
+            # Only run if we have GoAPI and timeframe is daily
+            if self.goapi_client and timeframe == "daily":
+                real_bandar = self.quant_engine.fetch_real_bandarmology(ticker)
+                if real_bandar:
+                    self.log(f"🔎 Mengambil Data Bandar Asli (GoAPI)...")
+                    
+                    # Merge scores
+                    bs_data = real_bandar.get('broker_summary', {})
+                    ff_data = real_bandar.get('foreign_flow', {})
+                    
+                    # Update TA Data with Real Info
+                    if bs_data.get('status') != "Neutral":
+                        ta_data['bandar_status'] = bs_data['status']
+                        ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
+                        # Note: We overwrite the proxy 'bandar_status' with real one
+                    
+                    # Recalculate Final Verdict using Real Scores
+                    # Extract current tech score proxy (approximate back from final score logic or re-calculate)
+                    # For simplicity, we trust the quant_engine's full calculator if we were to move logic there.
+                    # But since verdict logic is currently inside technical_analysis.py, we will patching it here.
+                    
+                    # Let's use QuantAnalyzer's verdict calculation to be authoritative
+                    # Tech Score approximation from TA logic:
+                    tech_score = 50 
+                    if "Bullish" in ta_data['trend']: tech_score += 20
+                    if "Golden Cross" in ta_data['macd_status']: tech_score += 10
+                    
+                    final_res = self.quant_engine.calculate_final_verdict(
+                        tech_score=tech_score,
+                        bandar_score=bs_data.get('bandar_score', 0),
+                        foreign_score=ff_data.get('foreign_score', 0)
+                    )
+                    
+                    ta_data['final_score'] = final_res['final_score']
+                    ta_data['verdict'] = final_res['verdict']
+                    ta_data['foreign_status'] = ff_data.get('status', 'N/A') # Add new field
+
             # 3. News Fetching
             self.log("🌍 Mengambil Berita Real-Time...")
             if progress_callback: progress_callback(0.5)
