@@ -41,20 +41,26 @@ class QuantAnalyzer:
         if not data:
             return {"status": "Neutral", "score": 0, "summary": "Data Broker N/A"}
             
-        # Expecting list of dicts: [{'broker_code': 'YP', 'buy_vol': 100, 'sell_vol': 50, 'buy_avg': 1000, 'sell_avg': 1000}, ...]
+        # Expecting list of dicts: [{'code': 'YP', 'side': 'BUY', 'lot': 100, 'value': 1000, 'avg': 1000}, ...]
         # Transform to DataFrame for analyze_broker_summary
         rows = []
         for item in data:
             code = item.get('broker_code') or item.get('code')
-            b_vol = float(item.get('buy_vol', 0))
-            s_vol = float(item.get('sell_vol', 0))
-            b_avg = float(item.get('buy_avg', 0))
-            s_avg = float(item.get('sell_avg', 0))
+            side = item.get('side', '').upper()
+            val = float(item.get('value', 0) or item.get('lot', 0)) # Prefer value, fallback to lot if needed
+            avg = float(item.get('avg', 0))
             
-            if b_vol > 0:
-                rows.append({'Broker': code, 'Action': 'BUY', 'Volume': b_vol, 'AvgPrice': b_avg})
-            if s_vol > 0:
-                rows.append({'Broker': code, 'Action': 'SELL', 'Volume': s_vol, 'AvgPrice': s_avg})
+            # GoAPI returns row-based (one row for BUY, one for SELL per broker)
+            if side == 'BUY':
+                rows.append({'Broker': code, 'Action': 'BUY', 'Volume': val, 'AvgPrice': avg})
+            elif side == 'SELL':
+                rows.append({'Broker': code, 'Action': 'SELL', 'Volume': val, 'AvgPrice': avg})
+            # Handle legacy format where buy_vol and sell_vol are in one row (if API changes back)
+            elif 'buy_vol' in item:
+                b_vol = float(item.get('buy_vol', 0))
+                s_vol = float(item.get('sell_vol', 0))
+                if b_vol > 0: rows.append({'Broker': code, 'Action': 'BUY', 'Volume': b_vol, 'AvgPrice': float(item.get('buy_avg',0))})
+                if s_vol > 0: rows.append({'Broker': code, 'Action': 'SELL', 'Volume': s_vol, 'AvgPrice': float(item.get('sell_avg',0))})
                 
         if not rows:
             return {"status": "Neutral", "score": 0, "summary": "Data Broker Kosong"}
