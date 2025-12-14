@@ -137,23 +137,47 @@ def analyze_technical(ticker, timeframe="daily"):
         if c.startswith('BBU_20_2.0'): df['BBU_20_2.0'] = df[c]
         elif c.startswith('BBL_20_2.0'): df['BBL_20_2.0'] = df[c]
     
-    # --- VOLUME ANALYSIS ---
+    # --- VOLUME & LIQUIDITY ANALYSIS (Enhanced) ---
     avg_vol_20 = df['Volume'].tail(20).mean()
+    
+    # Handle potentially 0 volume (e.g. morning session start) by checking previous candle if needed
+    curr_vol = float(volume)
+    if curr_vol <= 0 and len(df) > 1:
+        curr_vol = float(prev['Volume']) # Fallback to previous day if today is 0
+        
     vol_ratio = 0.0
     if avg_vol_20 > 0:
-        vol_ratio = float(volume) / float(avg_vol_20)
+        vol_ratio = curr_vol / float(avg_vol_20)
         
-    vol_status = "Normal"
-    if vol_ratio > 2.5: vol_status = "Ledakan Volume (Spike Ekstrem)"
-    elif vol_ratio > 1.5: vol_status = "Volume Tinggi (Akumulasi/Distribusi)"
-    elif vol_ratio < 0.5: vol_status = "Volume Rendah (Sepi)"
+    # Absolute Liquidity (Value = Price * Volume)
+    # Assuming YFinance volume is in Shares. 
+    tx_value = float(price) * curr_vol
+    
+    # Thresholds (IDR)
+    # 20 Billion IDR = 20,000,000,000
+    HIGH_LIQUIDITY_THRESHOLD = 20_000_000_000
+    
+    vol_status = "Normal 💤" # Default
+    
+    if vol_ratio > 2.5:
+        vol_status = "EXPLOSIVE VOL (Spike) 🚀"
+    elif vol_ratio > 1.2:
+        vol_status = "High Volume 🔥"
+    elif vol_ratio < 0.6:
+        vol_status = "Low / Dry 💤"
+    else:
+        # Normal RVol range (0.6 - 1.2)
+        # Check absolute liquidity
+        if tx_value > HIGH_LIQUIDITY_THRESHOLD:
+            vol_status = "High Liquidity (Active) 💧"
+        else:
+            vol_status = "Normal (Retail)"
     
     # --- SMART MONEY / BANDARMOLOGY (Refined) ---
-    # Logic:
-    # 1. Price UP + MFI Rising + OBV > EMA -> Strong Accumulation
-    # 2. Price DOWN + MFI Falling + OBV < EMA -> Strong Distribution
+    # Renamed from "Bandarmology" to be more accurate (Proxy Method)
     
     price_change_1d = latest['Close'] - prev['Close']
+    vol_spike = vol_ratio > 1.2
     
     sm_status = "Netral"
     sm_action = "Wait & See"
