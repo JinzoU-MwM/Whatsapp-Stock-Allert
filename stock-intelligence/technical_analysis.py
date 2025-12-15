@@ -2,34 +2,92 @@ import yfinance as yf
 import pandas_ta as ta
 import pandas as pd
 import numpy as np
+import os
+import datetime
+try:
+    from goapi_client import GoApiClient
+except ImportError:
+    GoApiClient = None
 
 def get_stock_data(ticker, period="2y", interval="1d"):
-    """Fetches stock data from yfinance. Auto-appends .JK if missing and initial fetch fails."""
+    """
+    Fetches stock data.
+    Prioritizes GoAPI if key is present, falls back to yfinance.
+    """
     print(f"Fetching data for {ticker}...")
     
     df = pd.DataFrame()
     actual_ticker = ticker
     
-    # Attempt 1: Try original ticker
-    try:
-        df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
-    except Exception as e:
-        print(f"Attempt 1 failed for {ticker}: {e}")
-
-    # Check if data is truly empty or invalid
-    if df.empty and "." not in ticker:
-        ticker_jk = f"{ticker}.JK"
-        print(f"Data empty/failed for {ticker}. Trying IDX suffix: {ticker_jk}...")
+    # --- Attempt 1: GoAPI ---
+    goapi_key = os.getenv("GOAPI_API_KEY")
+    # Disabled temporarily in favor of yfinance for price data as GoAPI seems delayed (e.g. returns Friday data on Monday)
+    # Re-enable if GoAPI provides truly realtime data in future.
+    # We still use GoAPI for Bandarmology (Broker Summary) later in the main flow.
+    """
+    if goapi_key and GoApiClient and interval == "1d":
+        print(f"   [Source] Attempting GoAPI for {ticker}...")
         try:
-            df = yf.download(ticker_jk, period=period, interval=interval, progress=False, auto_adjust=False)
-            if not df.empty:
-                actual_ticker = ticker_jk
+            client = GoApiClient(goapi_key)
+            ...
         except Exception as e:
-             print(f"Error fetching {ticker_jk}: {e}")
+            print(f"   [Source] GoAPI Failed: {e}. Fallback to yfinance.")
+    """
+
+    # --- Attempt 2: YFinance (Primary Source for Price) ---
+    if df.empty:
+        print(f"   [Source] Attempting yfinance for {ticker}...")
+        try:
+            df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
+        except Exception as e:
+            print(f"   [Source] yfinance failed for {ticker}: {e}")
+
+        # Check if data is truly empty or invalid
+        if df.empty and "." not in ticker:
+            ticker_jk = f"{ticker}.JK"
+            print(f"   [Source] Data empty/failed for {ticker}. Trying IDX suffix: {ticker_jk}...")
+            try:
+                df = yf.download(ticker_jk, period=period, interval=interval, progress=False, auto_adjust=False)
+                if not df.empty:
+                    actual_ticker = ticker_jk
+            except Exception as e:
+                 print(f"   [Source] Error fetching {ticker_jk}: {e}")
 
     if df.empty:
         raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK). It may be delisted or invalid.")
     
+    # --- Attempt 3: Merge Real-Time Price (GoAPI Latest) ---
+    # Only applicable for daily timeframe
+    if goapi_key and GoApiClient and interval == "1d" and not df.empty:
+         try:
+            client = GoApiClient(goapi_key)
+            latest = client.get_latest_price(ticker)
+            if latest:
+                latest_date_str = latest.get('date')
+                if latest_date_str:
+                    latest_date = pd.to_datetime(latest_date_str)
+                    last_hist_date = df.index[-1]
+                    
+                    # If latest price is newer than historical, append it
+                    if latest_date > last_hist_date:
+                        print(f"   [Source] Found newer real-time data for {latest_date_str}. Appending...")
+                        new_row = pd.DataFrame([{
+                            'Open': float(latest.get('open', 0)),
+                            'High': float(latest.get('high', 0)),
+                            'Low': float(latest.get('low', 0)),
+                            'Close': float(latest.get('close', 0)),
+                            'Volume': float(latest.get('volume', 0))
+                        }], index=[latest_date])
+                        
+                        df = pd.concat([df, new_row])
+                        print(f"   [Source] Data updated. Last candle: {latest_date_str}")
+                    elif latest_date == last_hist_date:
+                        # Optional: Update the last candle if it's the same day (intra-day update)
+                        # For now, we assume historical EOD is good enough, but we could overwrite.
+                        pass
+         except Exception as e:
+             print(f"   [Source] Real-time merge failed: {e}")
+
     # Ensure columns are flat (handle MultiIndex from yf.download in recent versions)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)

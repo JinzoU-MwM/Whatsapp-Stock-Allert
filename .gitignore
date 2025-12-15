@@ -5,3 +5,8 @@ __pycache__/
 *.pyc
 .wwebjs_auth/
 .wwebjs_cache/
+.factory/
+stock_intelligence.db
+stock-intelligence/charts/
+*.log
+
