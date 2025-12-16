@@ -57,43 +57,73 @@ def get_stock_data(ticker, period="2y", interval="1d"):
         raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK). It may be delisted or invalid.")
 
     # Ensure columns are flat (handle MultiIndex from yf.download in recent versions)
-    # Must be done BEFORE merging real-time data
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
-    
-    # --- Attempt 3: Merge Real-Time Price (GoAPI Latest) ---
-    # Only applicable for daily timeframe
-    if goapi_key and GoApiClient and interval == "1d" and not df.empty:
-         try:
-            client = GoApiClient(goapi_key)
-            latest = client.get_latest_price(ticker)
-            if latest:
-                latest_date_str = latest.get('date')
-                if latest_date_str:
-                    latest_date = pd.to_datetime(latest_date_str)
-                    last_hist_date = df.index[-1]
-                    
-                    # If latest price is newer than historical, append it
-                    if latest_date > last_hist_date:
-                        print(f"   [Source] Found newer real-time data for {latest_date_str}. Appending...")
-                        new_row = pd.DataFrame([{
-                            'Open': float(latest.get('open', 0)),
-                            'High': float(latest.get('high', 0)),
-                            'Low': float(latest.get('low', 0)),
-                            'Close': float(latest.get('close', 0)),
-                            'Volume': float(latest.get('volume', 0))
-                        }], index=[latest_date])
-                        
-                        df = pd.concat([df, new_row])
-                        print(f"   [Source] Data updated. Last candle: {latest_date_str}")
-                    elif latest_date == last_hist_date:
-                        # Optional: Update the last candle if it's the same day (intra-day update)
-                        # For now, we assume historical EOD is good enough, but we could overwrite.
-                        pass
-         except Exception as e:
-             print(f"   [Source] Real-time merge failed: {e}")
 
     return df, actual_ticker
+
+def get_valuation_data(ticker):
+    """
+    Fetches fundamental valuation data (PER, PBV, ROE) for a ticker.
+    Handles the .JK suffix logic independently to allow parallel execution in future.
+    """
+    valuation_data = {
+        "per": 0, "pbv": 0, "roe": 0, 
+        "eps": 0, "dividend_yield": 0, 
+        "market_cap": 0, "valuation_status": "N/A"
+    }
+    
+    try:
+        # Valuation often requires strict suffix for IDX (e.g. BBCA.JK) even if price worked for BBCA
+        val_ticker = ticker
+        if len(ticker) == 4 and not "." in ticker:
+             val_ticker = f"{ticker}.JK"
+             
+        t_obj = yf.Ticker(val_ticker)
+        # Use .info to fetch fundamental data
+        # Note: .info can be slow or inconsistent, handle errors gracefully
+        info = t_obj.info
+        
+        # Fallback: if val_ticker failed (empty info), try original
+        if not info or len(info) < 5:
+             t_obj = yf.Ticker(ticker)
+             info = t_obj.info
+        
+        pe_ratio = info.get('trailingPE', info.get('forwardPE', 0))
+        pbv = info.get('priceToBook', 0)
+        roe = info.get('returnOnEquity', 0)
+        eps = info.get('trailingEps', info.get('forwardEps', 0))
+        div_yield = info.get('dividendYield', 0)
+        market_cap = info.get('marketCap', 0)
+        
+        # Simple Valuation Status
+        val_status = "N/A"
+        
+        # Basic heuristic for "Undervalued"
+        # PER < 15 and PBV < 1.5 is often considered "cheap" but sector dependent
+        # High ROE (> 15%) is good quality
+        
+        if pe_ratio > 0:
+            if pe_ratio < 10 and pbv < 1:
+                val_status = "Undervalued (Cheap)"
+            elif pe_ratio > 25 or pbv > 4:
+                val_status = "Overvalued (Expensive)"
+            else:
+                val_status = "Fair Value"
+                
+        valuation_data = {
+            "per": pe_ratio,
+            "pbv": pbv,
+            "roe": roe,
+            "eps": eps,
+            "dividend_yield": div_yield,
+            "market_cap": market_cap,
+            "valuation_status": val_status
+        }
+    except Exception as e:
+        print(f"Warning: Valuation fetch failed: {e}")
+        
+    return valuation_data
 
 def analyze_technical(ticker, timeframe="daily"):
     """
@@ -357,62 +387,32 @@ def analyze_technical(ticker, timeframe="daily"):
         major_holders = "Data Tidak Tersedia"
 
     # --- VALUATION (Fundamental) ---
-    valuation_data = {}
+    valuation_data = get_valuation_data(actual_ticker)
+
+    # --- PIVOT POINTS (Standard) ---
+    # Pivot = (High + Low + Close) / 3
+    # R1 = 2*P - Low, S1 = 2*P - High
+    # R2 = P + (High - Low), S2 = P - (High - Low)
+    
+    pivots = {}
     try:
-        # Valuation often requires strict suffix for IDX (e.g. BBCA.JK) even if price worked for BBCA
-        val_ticker = actual_ticker
-        if len(actual_ticker) == 4 and not "." in actual_ticker:
-             val_ticker = f"{actual_ticker}.JK"
-             
-        t_obj = yf.Ticker(val_ticker)
-        # Use .info to fetch fundamental data
-        # Note: .info can be slow or inconsistent, handle errors gracefully
-        info = t_obj.info
+        p_high = float(latest['High'])
+        p_low = float(latest['Low'])
+        p_close = float(latest['Close'])
         
-        # Fallback: if val_ticker failed (empty info), try original
-        if not info or len(info) < 5:
-             t_obj = yf.Ticker(actual_ticker)
-             info = t_obj.info
+        pp = (p_high + p_low + p_close) / 3
+        r1 = (2 * pp) - p_low
+        s1 = (2 * pp) - p_high
+        r2 = pp + (p_high - p_low)
+        s2 = pp - (p_high - p_low)
         
-        pe_ratio = info.get('trailingPE', info.get('forwardPE', 0))
-        pbv = info.get('priceToBook', 0)
-        roe = info.get('returnOnEquity', 0)
-        eps = info.get('trailingEps', info.get('forwardEps', 0))
-        div_yield = info.get('dividendYield', 0)
-        market_cap = info.get('marketCap', 0)
-        
-        # Simple Valuation Status
-        val_status = "N/A"
-        
-        # Basic heuristic for "Undervalued"
-        # PER < 15 and PBV < 1.5 is often considered "cheap" but sector dependent
-        # High ROE (> 15%) is good quality
-        
-        if pe_ratio > 0:
-            if pe_ratio < 10 and pbv < 1:
-                val_status = "Undervalued (Cheap)"
-            elif pe_ratio > 25 or pbv > 4:
-                val_status = "Overvalued (Expensive)"
-            else:
-                val_status = "Fair Value"
-                
-        valuation_data = {
-            "per": pe_ratio,
-            "pbv": pbv,
-            "roe": roe,
-            "eps": eps,
-            "dividend_yield": div_yield,
-            "market_cap": market_cap,
-            "valuation_status": val_status
+        pivots = {
+            "pivot": pp,
+            "r1": r1, "s1": s1,
+            "r2": r2, "s2": s2
         }
-        
     except Exception as e:
-        print(f"Warning: Valuation fetch failed: {e}")
-        valuation_data = {
-            "per": 0, "pbv": 0, "roe": 0, 
-            "eps": 0, "dividend_yield": 0, 
-            "market_cap": 0, "valuation_status": "N/A"
-        }
+        print(f"Pivot Calc Error: {e}")
 
     # --- SUPPORT & RESISTANCE ---
     recent_high = df['High'].tail(20).max()
@@ -427,6 +427,23 @@ def analyze_technical(ticker, timeframe="daily"):
     # We calculate a confidence score (0-100) based on available proxies
     # Since we don't have real Broker/Foreign data yet, we use Proxy Bandarmology
     
+    # --- RECENT HISTORY (For AI Context) ---
+    history_str = "Date | Close | Vol | Change%\n"
+    try:
+        last_5 = df.tail(5)
+        for date, row in last_5.iterrows():
+            d_str = date.strftime('%Y-%m-%d')
+            c_price = row['Close']
+            vol = row['Volume']
+            
+            # Calc change if possible
+            # Need prev close, but row doesn't have it easily unless we shift.
+            # Approximation: current/prev - 1. 
+            # Easier: Just basic data.
+            history_str += f"{d_str} | {c_price:.0f} | {vol/1000:.0f}k\n"
+    except:
+        history_str = "Data History N/A"
+
     # --- RECALCULATE FIBONACCI (Required for Return) ---
     lookback = 120
     fib_slice = df.tail(lookback) if len(df) > lookback else df
@@ -505,5 +522,7 @@ def analyze_technical(ticker, timeframe="daily"):
         "target": target,
         "final_score": final_score,
         "verdict": verdict,
-        "valuation": valuation_data
+        "valuation": valuation_data,
+        "recent_history": history_str,
+        "pivots": pivots
     }

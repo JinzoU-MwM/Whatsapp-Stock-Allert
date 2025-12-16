@@ -9,4 +9,5 @@ __pycache__/
 stock_intelligence.db
 stock-intelligence/charts/
 *.log
+PROJECT_LOG.md
 

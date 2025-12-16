@@ -171,6 +171,7 @@ class QuantAnalyzer:
             "buyer_type": buyer_type,
             "net_vol_ratio": net_vol_ratio,
             "avg_price_diff": avg_price_diff,
+            "avg_buy_price": avg_buy_price,
             "summary": narrative
         }
 

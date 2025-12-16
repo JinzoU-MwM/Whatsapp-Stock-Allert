@@ -72,10 +72,10 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 🤖 *ANALISA AI (Smart Money & News):*
 {ai_analysis}
 
-🎯 *RENCANA TRADING:*
-• *Area Entry:* {ta_data['price']:.0f}
-• *Target (TP):* {ta_data['target']:.0f}
-• *Stop Loss (SL):* {ta_data['stop_loss']:.0f}
+🎯 *RENCANA TRADING (Classic Pivot):*
+• *Area Entry:* {ta_data.get('pivots', {}).get('s1', ta_data['price']):.0f} - {ta_data.get('pivots', {}).get('pivot', ta_data['price']):.0f}
+• *Target (TP):* {ta_data.get('pivots', {}).get('r1', ta_data['target']):.0f} - {ta_data.get('pivots', {}).get('r2', ta_data['target']):.0f}
+• *Stop Loss (SL):* {ta_data.get('pivots', {}).get('s2', ta_data['stop_loss']):.0f}
 
 _Dibuat oleh StockSignal Bot_"""
     return message
@@ -143,6 +143,7 @@ def main():
                 ta_data['bandar_status'] = bs_data.get('status', 'Neutral')
                 ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
                 ta_data['bandar_summary'] = bs_data.get('summary', '-')
+                ta_data['avg_bandar_price'] = f"{bs_data.get('avg_buy_price', 0):,.0f}"
                 
                 # Update Verdict
                 tech_score = 50 

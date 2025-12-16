@@ -47,6 +47,10 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         - Major Holder (Context): {ta_data.get('major_holders', 'N/A')}
         - Support: {ta_data['support']:.0f} | Resistance: {ta_data['resistance']:.0f}
         - Volatilitas (ATR): {ta_data.get('atr', 0):.0f} (Basis SL/TP)
+        - Posisi Harga Bandar (Avg Top 3): {ta_data.get('avg_bandar_price', 'N/A')} (Bandingkan dengan Current Price)
+        
+        DATA HISTORIS 5 HARI TERAKHIR:
+        {ta_data.get('recent_history', 'N/A')}
         
         2. SENTIMEN BERITA (REAL-TIME):
         {news_summary}
