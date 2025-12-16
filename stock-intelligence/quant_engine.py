@@ -263,13 +263,13 @@ class QuantAnalyzer:
         
         verdict = "WAIT & SEE"
         if final_score >= 80:
-            verdict = "STRONG BUY 🚀"
+            verdict = "STRONG BUY"
         elif final_score >= 60:
-            verdict = "BUY / ACCUMULATE ✅"
+            verdict = "BUY / ACCUMULATE"
         elif final_score <= 30:
-            verdict = "STRONG SELL ❌"
+            verdict = "STRONG SELL"
         elif final_score <= 45:
-            verdict = "SELL / AVOID ⚠️"
+            verdict = "SELL / AVOID"
             
         return {
             "final_score": int(final_score),

@@ -189,3 +189,27 @@ class GoApiClient:
             print(f"GoAPI Historical Error: {e}")
         
         return None
+
+    def get_indicators(self, ticker):
+        """
+        Fetches technical indicators from GoAPI.
+        Endpoint: /stock/idx/indicators?symbol={ticker}
+        """
+        if not self.api_key: return None
+        
+        url = f"{self.base_url}/indicators"
+        params = {"symbol": ticker}
+        
+        try:
+            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data and 'results' in data['data']:
+                    results = data['data']['results']
+                    if results and len(results) > 0:
+                        # Return the latest indicator set
+                        return results[0]
+        except Exception as e:
+            print(f"GoAPI Indicators Error: {e}")
+            
+        return None

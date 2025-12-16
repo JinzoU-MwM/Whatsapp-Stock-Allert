@@ -22,7 +22,7 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
     try:
         # Get configured model from env, default to flash-exp
         model_name = os.getenv("AI_MODEL", "gemini-2.0-flash-exp")
-        print(f"🤖 Using AI Model: {model_name}")
+        print(f"[*] Using AI Model: {model_name}")
         
         model = genai.GenerativeModel(model_name) 
         
@@ -51,8 +51,16 @@ def get_ai_analysis(ticker, ta_data, news_summary=""):
         2. SENTIMEN BERITA (REAL-TIME):
         {news_summary}
         
+        3. VALUASI FUNDAMENTAL (YFINANCE):
+        - Status Valuasi: {ta_data.get('valuation', {}).get('valuation_status', 'N/A')}
+        - PER (Price to Earnings): {ta_data.get('valuation', {}).get('per', 0):.2f}x
+        - PBV (Price to Book): {ta_data.get('valuation', {}).get('pbv', 0):.2f}x
+        - ROE (Return on Equity): {ta_data.get('valuation', {}).get('roe', 0) * 100:.2f}%
+        - Market Cap: {ta_data.get('valuation', {}).get('market_cap', 0) / 1_000_000_000:.0f} Miliar IDR
+        
         TUGAS UTAMA: 
-        Analisis data di atas secara holistik.
+        Analisis data di atas secara holistik (Teknikal + Fundamental + Bandarmology).
+        Jika Fundamental bagus (ROE tinggi, PER wajar) dan Teknikal konfirmasi (Breakout/Reversal), berikan bobot lebih tinggi.
         
         PENTING - BANDARMOLOGY:
         - Prioritaskan data "BANDARMOLOGY (Broker Summary)" dan "DETAIL BANDAR" di atas untuk wawasan akumulasi/distribusi.

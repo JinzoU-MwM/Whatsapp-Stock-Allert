@@ -55,6 +55,11 @@ def get_stock_data(ticker, period="2y", interval="1d"):
 
     if df.empty:
         raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK). It may be delisted or invalid.")
+
+    # Ensure columns are flat (handle MultiIndex from yf.download in recent versions)
+    # Must be done BEFORE merging real-time data
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
     
     # --- Attempt 3: Merge Real-Time Price (GoAPI Latest) ---
     # Only applicable for daily timeframe
@@ -87,10 +92,6 @@ def get_stock_data(ticker, period="2y", interval="1d"):
                         pass
          except Exception as e:
              print(f"   [Source] Real-time merge failed: {e}")
-
-    # Ensure columns are flat (handle MultiIndex from yf.download in recent versions)
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
 
     return df, actual_ticker
 
@@ -156,13 +157,13 @@ def analyze_technical(ticker, timeframe="daily"):
     price = latest['Close']
     volume = latest['Volume']
     
-    # Get Indicator Values safely
+    # Get Indicator Values (Default from Local Calc)
     rsi = latest.get('RSI_14', 50)
     cci_col = next((c for c in df.columns if c.startswith('CCI_')), 'CCI_20_0.015')
     cci = latest.get(cci_col, 0)
     
     adx = latest.get('ADX_14', 0)
-    atr = latest.get('ATRr_14', latest.get('ATR_14', price * 0.02)) # Fallback if ATR fails
+    atr = latest.get('ATRr_14', latest.get('ATR_14', price * 0.02)) # Fallback
     
     mfi = latest.get('MFI_14', 50)
     obv = latest.get('OBV', 0)
@@ -173,6 +174,26 @@ def analyze_technical(ticker, timeframe="daily"):
 
     ema20 = latest['EMA_20']
     ema50 = latest['EMA_50']
+    
+    # --- GOAPI INDICATORS MERGE (Hybrid) ---
+    # Overwrite key metrics with official GoAPI data if available
+    goapi_key = os.getenv("GOAPI_API_KEY")
+    if goapi_key and GoApiClient and timeframe == "daily":
+        try:
+            client = GoApiClient(goapi_key)
+            go_inds = client.get_indicators(ticker)
+            if go_inds:
+                print(f"   [Source] Merging GoAPI Indicators for {ticker}...")
+                # Map GoAPI fields to local variables
+                if 'RSI' in go_inds: rsi = float(go_inds['RSI'])
+                if 'EMA20' in go_inds: ema20 = float(go_inds['EMA20'])
+                if 'EMA50' in go_inds: ema50 = float(go_inds['EMA50'])
+                # GoAPI also has MA, likely used for other checks
+                
+                # Note: We don't overwrite MFI, ADX, MACD as GoAPI basic response 
+                # might not have them (based on probe). We keep local calc for those.
+        except Exception as e:
+            print(f"   [Source] GoAPI Indicator Fetch Failed: {e}")
 
     # MACD Values
     macd = latest['MACD_12_26_9']
@@ -215,19 +236,19 @@ def analyze_technical(ticker, timeframe="daily"):
     # 20 Billion IDR = 20,000,000,000
     HIGH_LIQUIDITY_THRESHOLD = 20_000_000_000
     
-    vol_status = "Normal 💤" # Default
+    vol_status = "Normal" # Default
     
     if vol_ratio > 2.5:
-        vol_status = "EXPLOSIVE VOL (Spike) 🚀"
+        vol_status = "EXPLOSIVE VOL (Spike)"
     elif vol_ratio > 1.2:
-        vol_status = "High Volume 🔥"
+        vol_status = "High Volume"
     elif vol_ratio < 0.6:
-        vol_status = "Low / Dry 💤"
+        vol_status = "Low / Dry"
     else:
         # Normal RVol range (0.6 - 1.2)
         # Check absolute liquidity
         if tx_value > HIGH_LIQUIDITY_THRESHOLD:
-            vol_status = "High Liquidity (Active) 💧"
+            vol_status = "High Liquidity (Active)"
         else:
             vol_status = "Normal (Retail)"
     
@@ -335,6 +356,64 @@ def analyze_technical(ticker, timeframe="daily"):
     except:
         major_holders = "Data Tidak Tersedia"
 
+    # --- VALUATION (Fundamental) ---
+    valuation_data = {}
+    try:
+        # Valuation often requires strict suffix for IDX (e.g. BBCA.JK) even if price worked for BBCA
+        val_ticker = actual_ticker
+        if len(actual_ticker) == 4 and not "." in actual_ticker:
+             val_ticker = f"{actual_ticker}.JK"
+             
+        t_obj = yf.Ticker(val_ticker)
+        # Use .info to fetch fundamental data
+        # Note: .info can be slow or inconsistent, handle errors gracefully
+        info = t_obj.info
+        
+        # Fallback: if val_ticker failed (empty info), try original
+        if not info or len(info) < 5:
+             t_obj = yf.Ticker(actual_ticker)
+             info = t_obj.info
+        
+        pe_ratio = info.get('trailingPE', info.get('forwardPE', 0))
+        pbv = info.get('priceToBook', 0)
+        roe = info.get('returnOnEquity', 0)
+        eps = info.get('trailingEps', info.get('forwardEps', 0))
+        div_yield = info.get('dividendYield', 0)
+        market_cap = info.get('marketCap', 0)
+        
+        # Simple Valuation Status
+        val_status = "N/A"
+        
+        # Basic heuristic for "Undervalued"
+        # PER < 15 and PBV < 1.5 is often considered "cheap" but sector dependent
+        # High ROE (> 15%) is good quality
+        
+        if pe_ratio > 0:
+            if pe_ratio < 10 and pbv < 1:
+                val_status = "Undervalued (Cheap)"
+            elif pe_ratio > 25 or pbv > 4:
+                val_status = "Overvalued (Expensive)"
+            else:
+                val_status = "Fair Value"
+                
+        valuation_data = {
+            "per": pe_ratio,
+            "pbv": pbv,
+            "roe": roe,
+            "eps": eps,
+            "dividend_yield": div_yield,
+            "market_cap": market_cap,
+            "valuation_status": val_status
+        }
+        
+    except Exception as e:
+        print(f"Warning: Valuation fetch failed: {e}")
+        valuation_data = {
+            "per": 0, "pbv": 0, "roe": 0, 
+            "eps": 0, "dividend_yield": 0, 
+            "market_cap": 0, "valuation_status": "N/A"
+        }
+
     # --- SUPPORT & RESISTANCE ---
     recent_high = df['High'].tail(20).max()
     recent_low = df['Low'].tail(20).min()
@@ -383,11 +462,11 @@ def analyze_technical(ticker, timeframe="daily"):
     final_score = (tech_score * 0.4) + (bandar_score * 0.4) + (sentiment_score * 0.2)
     final_score = min(100, max(0, int(final_score)))
     
-    verdict = "WAIT & SEE ⚠️"
-    if final_score >= 75: verdict = "STRONG BUY 🚀"
-    elif final_score >= 60: verdict = "BUY / ACCUMULATE ✅"
-    elif final_score <= 30: verdict = "STRONG SELL ❌"
-    elif final_score <= 45: verdict = "SELL / AVOID 🔻"
+    verdict = "WAIT & SEE"
+    if final_score >= 75: verdict = "STRONG BUY"
+    elif final_score >= 60: verdict = "BUY / ACCUMULATE"
+    elif final_score <= 30: verdict = "STRONG SELL"
+    elif final_score <= 45: verdict = "SELL / AVOID"
 
     return {
         "ticker": actual_ticker,
@@ -425,5 +504,6 @@ def analyze_technical(ticker, timeframe="daily"):
         "stop_loss": stop_loss,
         "target": target,
         "final_score": final_score,
-        "verdict": verdict
+        "verdict": verdict,
+        "valuation": valuation_data
     }

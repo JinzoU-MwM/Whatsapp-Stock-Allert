@@ -30,6 +30,20 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
     trend_emoji = "📈" if "Bullish" in ta_data['trend'] else "📉"
     vol_emoji = "🔥" if ta_data['vol_ratio'] > 1.5 else "💤"
     
+    # Valuation Data Extraction
+    val_data = ta_data.get('valuation', {})
+    val_status = val_data.get('valuation_status', 'N/A')
+    per_val = val_data.get('per', 0)
+    pbv_val = val_data.get('pbv', 0)
+    roe_val = val_data.get('roe', 0) * 100 # Convert to %
+    
+    # Format Valuation Section
+    valuation_section = f"""💰 *FUNDAMENTAL & VALUASI:*
+• *Status:* {val_status}
+• *PER:* {per_val:.2f}x | *PBV:* {pbv_val:.2f}x
+• *ROE:* {roe_val:.2f}%
+"""
+
     # Clean up news summary for better display if it exists
     news_section = ""
     if news_summary:
@@ -53,7 +67,8 @@ def format_message(ticker, ta_data, ai_analysis, news_summary=""):
 • *Harga:* {ta_data['price']:.0f}
 • *Volume:* {ta_data['vol_status']} {vol_emoji}
 • *RSI:* {ta_data['rsi']:.2f} | *ADX:* {ta_data.get('adx', 0):.2f}
-{news_section}
+
+{valuation_section}{news_section}
 🤖 *ANALISA AI (Smart Money & News):*
 {ai_analysis}
 
@@ -73,7 +88,10 @@ def broadcast_message(phone, message, media_path=None):
     if not phone:
         print("No phone number provided. Skipping WhatsApp broadcast.")
         print("--- Generated Message ---")
-        print(message)
+        try:
+            print(message)
+        except UnicodeEncodeError:
+            print(message.encode('ascii', 'ignore').decode('ascii'))
         return
 
     payload = {
@@ -121,11 +139,10 @@ def main():
                 bs_data = real_bandar.get('broker_summary', {})
                 ff_data = real_bandar.get('foreign_flow', {})
                 
-                # Update Data
-                if bs_data.get('status') != "Neutral":
-                    ta_data['bandar_status'] = bs_data['status']
-                    ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
-                    ta_data['bandar_summary'] = bs_data.get('summary', '-') # Narrative details
+                # Update Data (Always update summary if available, not just if non-neutral)
+                ta_data['bandar_status'] = bs_data.get('status', 'Neutral')
+                ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
+                ta_data['bandar_summary'] = bs_data.get('summary', '-')
                 
                 # Update Verdict
                 tech_score = 50 

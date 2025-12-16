@@ -173,10 +173,12 @@ class StockAppController:
                     ff_data = real_bandar.get('foreign_flow', {})
                     
                     # Update TA Data with Real Info
-                    if bs_data.get('status') != "Neutral":
-                        ta_data['bandar_status'] = bs_data['status']
-                        ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
-                        # Note: We overwrite the proxy 'bandar_status' with real one
+                    # Always update if we have valid dictionary response, not just if status != Neutral
+                    # The previous check `if bs_data.get('status') != "Neutral":` was filtering out valid "Neutral" or "Distribusi Ringan" data
+                    
+                    ta_data['bandar_status'] = bs_data.get('status', 'Neutral')
+                    ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
+                    ta_data['bandar_summary'] = bs_data.get('summary', '-')
                     
                     # Recalculate Final Verdict using Real Scores
                     # Extract current tech score proxy (approximate back from final score logic or re-calculate)
@@ -448,6 +450,16 @@ class StockAppController:
             
             # Reload dotenv to be sure
             load_dotenv(override=True)
+            
+            # --- HOT RELOAD COMPONENTS ---
+            # Re-initialize GoAPI Client and Quant Engine with new keys
+            if os.getenv("GOAPI_API_KEY") and GoApiClient:
+                self.log("🔄 Reloading GoAPI Client & Quant Engine...")
+                self.goapi_client = GoApiClient()
+                self.quant_engine = QuantAnalyzer(self.goapi_client)
+            else:
+                self.goapi_client = None
+                self.quant_engine = QuantAnalyzer(None)
             
             self.log("✅ Configuration saved to .env")
             return True

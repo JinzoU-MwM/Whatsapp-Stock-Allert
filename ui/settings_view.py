@@ -48,8 +48,22 @@ class SettingsView(ctk.CTkFrame):
         # AI Model Selection
         ctk.CTkLabel(self.form_frame, text="AI Model (Gemini)", font=("Arial", 12, "bold"), text_color="gray").pack(anchor="w", pady=(10, 0))
         self.model_var = ctk.StringVar(value="gemini-2.0-flash-exp")
+        
+        # Updated Model List based on verified v1beta models
+        # Only models confirmed via list_models() API probe
+        self.model_options = [
+            "gemini-2.0-flash-exp (Experimental)",
+            "gemini-2.0-flash (Fast)",
+            "gemini-2.0-flash-lite (Lite)",
+            "gemini-2.5-flash (Balanced)",
+            "gemini-2.5-pro (Pro)",
+            "gemini-3-pro-preview (Gemini 3 Pro Preview)",
+            "gemini-exp-1206 (Experimental 1206)",
+            "deep-research-pro-preview-12-2025 (Deep Research)"
+        ]
+        
         self.combo_model = ctk.CTkComboBox(self.form_frame, width=400, variable=self.model_var, 
-                                         values=["gemini-2.0-flash-exp (Free/Fast)", "gemini-1.5-pro (Paid/Deep)", "gemini-1.5-flash (Balanced)"],
+                                         values=self.model_options,
                                          state="readonly") # Prevent manual typing
         self.combo_model.pack(anchor="w", pady=(5, 10), fill="x")
         
@@ -77,10 +91,18 @@ class SettingsView(ctk.CTkFrame):
         
         # Load model preference
         current_model = config.get("AI_MODEL", "gemini-2.0-flash-exp")
-        # Match with combobox values (simple check)
-        if "pro" in current_model: self.model_var.set("gemini-1.5-pro (Paid/Deep)")
-        elif "1.5-flash" in current_model: self.model_var.set("gemini-1.5-flash (Balanced)")
-        else: self.model_var.set("gemini-2.0-flash-exp (Free/Fast)")
+        
+        # Match with combobox values
+        found = False
+        for option in self.model_options:
+            if option.startswith(current_model):
+                self.model_var.set(option)
+                found = True
+                break
+        
+        if not found:
+            # Fallback or just set raw if not in list (might be custom)
+            self.model_var.set(f"{current_model} (Custom)")
 
     def save_settings(self):
         # Extract clean model name from combobox value (remove description)
