@@ -1,9 +1,11 @@
-import yfinance as yf
-import pandas_ta as ta
 import pandas as pd
 import numpy as np
 import os
 import datetime
+# LAZY IMPORTS: yfinance and pandas_ta are imported inside functions to speed up app launch
+# import yfinance as yf
+# import pandas_ta as ta
+
 try:
     from goapi_client import GoApiClient
 except ImportError:
@@ -12,61 +14,56 @@ except ImportError:
 def get_stock_data(ticker, period="2y", interval="1d"):
     """
     Fetches stock data.
-    Prioritizes GoAPI if key is present, falls back to yfinance.
+    Strictly prioritizes IDX (.JK) for 4-letter tickers to avoid US stock collisions.
     """
+    import yfinance as yf # Lazy import
+    
     print(f"Fetching data for {ticker}...")
     
     df = pd.DataFrame()
     actual_ticker = ticker
     
-    # --- Attempt 1: GoAPI ---
-    goapi_key = os.getenv("GOAPI_API_KEY")
-    # Disabled temporarily in favor of yfinance for price data as GoAPI seems delayed (e.g. returns Friday data on Monday)
-    # Re-enable if GoAPI provides truly realtime data in future.
-    # We still use GoAPI for Bandarmology (Broker Summary) later in the main flow.
-    """
-    if goapi_key and GoApiClient and interval == "1d":
-        print(f"   [Source] Attempting GoAPI for {ticker}...")
+    # Logic: If ticker is 4 letters and no dot, try .JK FIRST.
+    # This prevents getting US data for 'COAL', 'ABBA', 'FREN' etc.
+    tickers_to_try = []
+    if len(ticker) == 4 and "." not in ticker:
+        tickers_to_try.append(f"{ticker}.JK")
+    tickers_to_try.append(ticker)
+    
+    # Try fetching
+    for t in tickers_to_try:
         try:
-            client = GoApiClient(goapi_key)
-            ...
+            print(f"   [Source] Attempting yfinance for {t}...")
+            # Use auto_adjust=True for better price continuity (splits/dividends)
+            temp_df = yf.download(t, period=period, interval=interval, progress=False, auto_adjust=True)
+            
+            # Check for MultiIndex columns (yfinance > 0.2.0)
+            if isinstance(temp_df.columns, pd.MultiIndex):
+                temp_df.columns = temp_df.columns.get_level_values(0)
+            
+            if not temp_df.empty:
+                # Basic validation: Check if recent volume is not zero (delisted/inactive check)
+                if temp_df['Volume'].tail(5).sum() > 0:
+                    df = temp_df
+                    actual_ticker = t
+                    print(f"   [Source] Success with {t}")
+                    break
         except Exception as e:
-            print(f"   [Source] GoAPI Failed: {e}. Fallback to yfinance.")
-    """
-
-    # --- Attempt 2: YFinance (Primary Source for Price) ---
-    if df.empty:
-        print(f"   [Source] Attempting yfinance for {ticker}...")
-        try:
-            df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=False)
-        except Exception as e:
-            print(f"   [Source] yfinance failed for {ticker}: {e}")
-
-        # Check if data is truly empty or invalid
-        if df.empty and "." not in ticker:
-            ticker_jk = f"{ticker}.JK"
-            print(f"   [Source] Data empty/failed for {ticker}. Trying IDX suffix: {ticker_jk}...")
-            try:
-                df = yf.download(ticker_jk, period=period, interval=interval, progress=False, auto_adjust=False)
-                if not df.empty:
-                    actual_ticker = ticker_jk
-            except Exception as e:
-                 print(f"   [Source] Error fetching {ticker_jk}: {e}")
+            print(f"   [Source] Failed for {t}: {e}")
 
     if df.empty:
-        raise ValueError(f"No data found for ticker {ticker} (or {ticker}.JK). It may be delisted or invalid.")
-
-    # Ensure columns are flat (handle MultiIndex from yf.download in recent versions)
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
+        raise ValueError(f"No valid data found for ticker {ticker}. Ensure it is an active IDX stock.")
 
     return df, actual_ticker
 
 def get_valuation_data(ticker):
     """
     Fetches fundamental valuation data (PER, PBV, ROE) for a ticker.
+    Fetches fundamental valuation data (PER, PBV, ROE) for a ticker.
     Handles the .JK suffix logic independently to allow parallel execution in future.
     """
+    import yfinance as yf # Lazy import
+    
     valuation_data = {
         "per": 0, "pbv": 0, "roe": 0, 
         "eps": 0, "dividend_yield": 0, 
@@ -74,40 +71,75 @@ def get_valuation_data(ticker):
     }
     
     try:
-        # Valuation often requires strict suffix for IDX (e.g. BBCA.JK) even if price worked for BBCA
-        val_ticker = ticker
+        # Valuation often requires strict suffix for IDX (e.g. BBCA.JK)
+        val_tickers_to_try = []
         if len(ticker) == 4 and not "." in ticker:
-             val_ticker = f"{ticker}.JK"
-             
-        t_obj = yf.Ticker(val_ticker)
-        # Use .info to fetch fundamental data
-        # Note: .info can be slow or inconsistent, handle errors gracefully
-        info = t_obj.info
+             val_tickers_to_try.append(f"{ticker}.JK")
+        val_tickers_to_try.append(ticker)
         
-        # Fallback: if val_ticker failed (empty info), try original
-        if not info or len(info) < 5:
-             t_obj = yf.Ticker(ticker)
-             info = t_obj.info
+        info = None
+        for t in val_tickers_to_try:
+            try:
+                t_obj = yf.Ticker(t)
+                temp_info = t_obj.info
+                # Check if valid data received (Yahoo sometimes returns empty dict or generic metadata)
+                if temp_info and len(temp_info) > 5 and 'regularMarketPrice' in temp_info:
+                    info = temp_info
+                    print(f"   [Valuation] Success with {t}")
+                    break
+            except Exception:
+                continue
         
+        if not info:
+            # If all failed, use the last one just to have something, or keep empty
+            print(f"   [Valuation] Warning: No fundamental data found for {ticker}")
+            return valuation_data
+        
+        # Extract Data with Fallbacks
         pe_ratio = info.get('trailingPE', info.get('forwardPE', 0))
         pbv = info.get('priceToBook', 0)
         roe = info.get('returnOnEquity', 0)
         eps = info.get('trailingEps', info.get('forwardEps', 0))
         div_yield = info.get('dividendYield', 0)
         market_cap = info.get('marketCap', 0)
+        currency = info.get('currency', 'IDR')
+        fin_currency = info.get('financialCurrency', currency) # Default to same if missing
         
-        # Simple Valuation Status
+        # FORCE IDR CONVERSION
+        # Logic: If currency is USD, multiply by ~16000 (Conservative Rate)
+        usd_idr_rate = 16200 
+        
+        # Case A: Market Cap / Quote is in USD (Rare for .JK, but possible)
+        if currency == 'USD':
+            print(f"   [Valuation] Detected USD Quote for {ticker}. Converting to IDR...")
+            market_cap = market_cap * usd_idr_rate
+            eps = eps * usd_idr_rate
+            
+        # Case B: Quote in IDR, but Financials (Book Value) in USD (Common for Energy/Mining like ADRO, ITMG)
+        # Symptom: PBV is massive (>1000x) because it divides IDR Price by USD Book Value
+        if fin_currency == 'USD' and currency == 'IDR':
+             if pbv > 100: # Sanity check: Only fix if it looks broken
+                 print(f"   [Valuation] Detected IDR/USD Mismatch for {ticker} (PBV {pbv:.0f}x). Adjusting...")
+                 pbv = pbv / usd_idr_rate
+                 # Also adjust EPS if it was raw USD
+                 # Yahoo usually handles EPS better, but let's check:
+                 # If EPS is ~0.05 (USD) and Price is 3000 (IDR), PE is 60,000. 
+                 # If PE is normal, EPS might be correct? 
+                 # Usually PE is calculated correctly by Yahoo, but PBV is often broken.
+                 # We'll trust PE for now, but fix PBV.
+        
+        # Refined Valuation Logic
         val_status = "N/A"
         
-        # Basic heuristic for "Undervalued"
-        # PER < 15 and PBV < 1.5 is often considered "cheap" but sector dependent
-        # High ROE (> 15%) is good quality
-        
-        if pe_ratio > 0:
-            if pe_ratio < 10 and pbv < 1:
+        # Only assess if we have at least PBV or PER
+        if pe_ratio > 0 or pbv > 0:
+            if (0 < pe_ratio < 10) and (0 < pbv < 1):
                 val_status = "Undervalued (Cheap)"
             elif pe_ratio > 25 or pbv > 4:
                 val_status = "Overvalued (Expensive)"
+            elif pe_ratio == 0 and pbv > 0:
+                # Case: Earnings negative but has Book Value (e.g. Turnaround?)
+                val_status = "Negative Earnings (Check PBV)"
             else:
                 val_status = "Fair Value"
                 
@@ -118,26 +150,47 @@ def get_valuation_data(ticker):
             "eps": eps,
             "dividend_yield": div_yield,
             "market_cap": market_cap,
-            "valuation_status": val_status
+            "valuation_status": val_status,
+            "currency": "IDR" # We forced it
         }
     except Exception as e:
         print(f"Warning: Valuation fetch failed: {e}")
         
     return valuation_data
 
+import concurrent.futures
+
 def analyze_technical(ticker, timeframe="daily"):
     """
     Performs technical analysis using pandas_ta.
     Returns a dictionary with trend, support, resistance, key levels, VOLUME ANALYSIS, AND BANDARMOLOGY.
+    EXPERIMENTAL: Parallel Execution for Speed
     """
-    # Map timeframe to yfinance params
-    if timeframe == "weekly":
-        df, actual_ticker = get_stock_data(ticker, period="2y", interval="1wk")
-    elif timeframe == "monthly":
-        df, actual_ticker = get_stock_data(ticker, period="5y", interval="1mo")
-    else:
-        df, actual_ticker = get_stock_data(ticker, period="1y", interval="1d") # Default daily
+    import pandas_ta as ta # Lazy Import to register .ta accessor
     
+    # Helper to clean up code
+    def fetch_price():
+        if timeframe == "weekly":
+            return get_stock_data(ticker, period="2y", interval="1wk")
+        elif timeframe == "monthly":
+            return get_stock_data(ticker, period="5y", interval="1mo")
+        else:
+            return get_stock_data(ticker, period="1y", interval="1d")
+
+    # Parallel Fetching: Price & Valuation are independent
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_price = executor.submit(fetch_price)
+        future_val = executor.submit(get_valuation_data, ticker) # Check ticker suffix handling inside
+        
+        # We need Actual Ticker from price fetch for some logic, but valuation handles its own
+        try:
+            df, actual_ticker = future_price.result()
+        except Exception as e:
+            # If price fails, we can't do much
+            raise e
+            
+        valuation_data = future_val.result()
+
     # Ensure MultiIndex columns are handled if yfinance returns them
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -163,7 +216,30 @@ def analyze_technical(ticker, timeframe="daily"):
     # 4. Volume & Smart Money
     df.ta.mfi(length=14, append=True) # Returns MFI_14
     df.ta.obv(append=True) # Returns OBV
+    df.ta.vwap(append=True) # Returns VWAP_D (Volume Weighted Average Price)
+    
     # Calculate OBV EMA for trend signal
+    
+    # ... [After processing df] ...
+    
+    # Extract Latest Values
+    latest = df.iloc[-1]
+    
+    # Price Change
+    try:
+        if len(df) > 1:
+            prev_close = df.iloc[-2]['Close']
+            curr_close = latest['Close']
+            change_pct = ((curr_close - prev_close) / prev_close) * 100
+        else:
+            change_pct = 0
+    except:
+        change_pct = 0
+        
+    vwap_val = latest.get('VWAP_D', 0)
+    if pd.isna(vwap_val): vwap_val = 0
+    
+    # (Removed premature result block)
     # We need to explicitly access the OBV column since column name is just 'OBV'
     if 'OBV' in df.columns:
         df['OBV_EMA'] = ta.ema(df['OBV'], length=20)
@@ -173,8 +249,8 @@ def analyze_technical(ticker, timeframe="daily"):
     df.ta.bbands(length=20, std=2, append=True)
     
     # 6. Candlestick Patterns
-    # We'll detect a few key patterns
-    patterns = ["doji", "engulfing", "hammer", "shooting_star"]
+    # Note: shooting_star might not be available in base pandas_ta without ta-lib
+    patterns = ["doji", "engulfing", "hammer"]
     try:
         df.ta.cdl_pattern(name=patterns, append=True)
     except Exception as e:
@@ -520,6 +596,8 @@ def analyze_technical(ticker, timeframe="daily"):
         "bb_status": bb_status,
         "stop_loss": stop_loss,
         "target": target,
+        "vwap": vwap_val,
+        "change_pct": change_pct,
         "final_score": final_score,
         "verdict": verdict,
         "valuation": valuation_data,

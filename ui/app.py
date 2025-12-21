@@ -107,8 +107,8 @@ class StockSignalApp(ctk.CTk):
         
         self.market_view.grid_forget()
         self.portfolio_view.grid_forget()
-        self.settings_view.grid(row=0, column=0, sticky="nsew")
         self.settings_view.load_data() # Refresh data
+        self.settings_view.grid(row=0, column=0, sticky="nsew")
 
     def load_ticker(self, ticker):
         self.show_market_view()

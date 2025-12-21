@@ -1,12 +1,15 @@
 customtkinter
 yfinance
-pandas_ta
 pandas
+pandas_ta
+numpy
+matplotlib
+mplfinance
 google-generativeai
 requests
 python-dotenv
-mplfinance
 qrcode
 Pillow
 pytest
 pytest-mock
+python-dateutil

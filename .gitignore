@@ -1,13 +1,17 @@
-.env
-venv/
-node_modules/
+
 __pycache__/
 *.pyc
+venv/
+charts/
+.env
+.DS_Store
+
+# WhatsApp Session Data
 .wwebjs_auth/
 .wwebjs_cache/
-.factory/
-stock_intelligence.db
-stock-intelligence/charts/
-*.log
-PROJECT_LOG.md
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/.wwebjs_cache/
 
+# Dependencies
+node_modules/
+whatsapp-service/node_modules/

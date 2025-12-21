@@ -14,7 +14,7 @@ try:
 except ImportError:
     GoApiClient = None
 
-from catalyst_agent import get_ai_analysis
+from catalyst_agent import get_technical_analysis, get_bandarmology_analysis
 from news_fetcher import fetch_stock_news
 from chart_generator import generate_chart
 from main import format_message, broadcast_message
@@ -41,7 +41,7 @@ class StockAppController:
 
     def log(self, message):
         # Suppress logging in production unless it's a critical error or analysis step
-        if self.log_callback and (message.startswith("✅") or message.startswith("❌") or message.startswith("📊") or message.startswith("🧠") or message.startswith("🌍")):
+        if self.log_callback and (message.startswith("✅") or message.startswith("❌") or message.startswith("📊") or message.startswith("🧠") or message.startswith("🌍") or message.startswith("🔵") or message.startswith("🔎") or message.startswith("📈")):
              self.log_callback(message)
         # Always log to console/file if needed for debugging, or comment out for cleaner production
         # else:
@@ -135,107 +135,283 @@ class StockAppController:
 
     def run_analysis(self, ticker, timeframe="daily", progress_callback=None):
         """
-        Orchestrates the full analysis pipeline.
-        :param progress_callback: Function to update progress bar (0.0 - 1.0)
+        Orchestrates the unified "Stock Intelligence" pipeline.
+        Combines Technical, Forensic Bandarmology, and News into one report.
         """
         ticker = ticker.upper()
-        self.log(f"🔵 Memulai Deep Dive untuk {ticker} ({timeframe})...")
+        self.log(f"🔵 Memulai Stock Intelligence untuk {ticker} ({timeframe})...")
         if progress_callback: progress_callback(0.1)
         
         # Save to History
         db_manager.add_history(ticker)
 
-        # 1. Check Cache (Skip for now if timeframe is not standard, or implement better cache key)
-        # For simplicity, we only cache daily default. If timeframe != daily, skip cache or update cache key.
-        # Let's simple skip cache for non-daily for now to ensure freshness.
+        _cached = None
+        # 1. Check Cache (Daily only)
         if timeframe == "daily":
             cached_data = db_manager.get_cached_analysis(ticker)
             if cached_data:
-                self.log("⚡ Menggunakan Data Cache (Hemat Token)...")
-                if progress_callback: progress_callback(1.0)
-                return cached_data['full_message'], None
+                # We can return cached, but let's see if we want to force refresh for demo
+                # self.log("⚡ Menggunakan Data Cache (Hemat Token)...")
+                # if progress_callback: progress_callback(1.0)
+                # return cached_data['full_message'], None, 50 # TODO: store sentiment
+                pass 
 
         try:
-            # 2. Technical Analysis
-            self.log(f"📊 Menjalankan Analisa Teknikal ({timeframe})...")
-            if progress_callback: progress_callback(0.3)
-            ta_data = analyze_technical(ticker, timeframe=timeframe)
+            # PARALLEL EXECUTION WRAPPER
+            # We fetch Tech, Bandarmology, and News concurrently to save time.
             
-            # 2.1 Quant Analysis (Real Bandarmology if available)
-            # Only run if we have GoAPI and timeframe is daily
-            if self.goapi_client and timeframe == "daily":
-                real_bandar = self.quant_engine.fetch_real_bandarmology(ticker)
-                if real_bandar:
-                    self.log(f"🔎 Mengambil Data Bandar Asli (GoAPI)...")
-                    
-                    # Merge scores
-                    bs_data = real_bandar.get('broker_summary', {})
-                    ff_data = real_bandar.get('foreign_flow', {})
-                    
-                    # Update TA Data with Real Info
-                    # Always update if we have valid dictionary response, not just if status != Neutral
-                    # The previous check `if bs_data.get('status') != "Neutral":` was filtering out valid "Neutral" or "Distribusi Ringan" data
-                    
-                    ta_data['bandar_status'] = bs_data.get('status', 'Neutral')
-                    ta_data['bandar_action'] = f"Net Ratio: {bs_data.get('net_vol_ratio',0):.2f}"
-                    ta_data['bandar_summary'] = bs_data.get('summary', '-')
-                    
-                    # Recalculate Final Verdict using Real Scores
-                    # Extract current tech score proxy (approximate back from final score logic or re-calculate)
-                    # For simplicity, we trust the quant_engine's full calculator if we were to move logic there.
-                    # But since verdict logic is currently inside technical_analysis.py, we will patching it here.
-                    
-                    # Let's use QuantAnalyzer's verdict calculation to be authoritative
-                    # Tech Score approximation from TA logic:
-                    tech_score = 50 
-                    if "Bullish" in ta_data['trend']: tech_score += 20
-                    if "Golden Cross" in ta_data['macd_status']: tech_score += 10
-                    
-                    final_res = self.quant_engine.calculate_final_verdict(
-                        tech_score=tech_score,
-                        bandar_score=bs_data.get('bandar_score', 0),
-                        foreign_score=ff_data.get('foreign_score', 0)
-                    )
-                    
-                    ta_data['final_score'] = final_res['final_score']
-                    ta_data['verdict'] = final_res['verdict']
-                    ta_data['foreign_status'] = ff_data.get('status', 'N/A') # Add new field
+            import concurrent.futures
+            
+            def fetch_full_bandar():
+                """Helper to fetch all required bandarmology data if eligible"""
+                if self.goapi_client and timeframe == "daily":
+                    self.log(f"🔎 Menjalankan Forensik Bandarmology...")
+                    if progress_callback: progress_callback(0.4) # Approx
+                    real = self.quant_engine.fetch_real_bandarmology(ticker)
+                    hist = self.goapi_client.get_broker_summary_historical(ticker, days=20)
+                    return real, hist
+                return None, None
 
-            # 3. News Fetching
-            self.log("🌍 Mengambil Berita Real-Time...")
-            if progress_callback: progress_callback(0.5)
-            news_summary = fetch_stock_news(ta_data['ticker'])
+            # Execute Parallel Tasks
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                self.log(f"🚀 Memulai Parallel Data Fetching ({ticker})...")
+                
+                # 1. Technical
+                future_tech = executor.submit(analyze_technical, ticker, timeframe=timeframe)
+                
+                # 2. Bandarmology
+                future_bandar = executor.submit(fetch_full_bandar)
+                
+                # 3. News
+                future_news = executor.submit(fetch_stock_news, ticker)
+                
+                # WAIT FOR RESULTS
+                try:
+                    ta_data = future_tech.result()
+                    real_bandar, hist_raw = future_bandar.result()
+                    news_summary = future_news.result()
+                except Exception as e:
+                    self.log(f"❌ Error in Parallel Fetch: {e}")
+                    raise e
+
+            # Progress Update
+            if progress_callback: progress_callback(0.6)
+
+            # Variables for Bandarmology Logic
+            broker_history_df = None
+            broker_flow_df = None
+            bandar_summary_lines = []
             
-            # 4. AI Analysis
-            self.log("🧠 Melakukan Riset AI...")
-            if progress_callback: progress_callback(0.7)
-            ai_analysis = get_ai_analysis(ta_data['ticker'], ta_data, news_summary)
+            # Context for AI
+            context_data = {
+                'today_summary': 'N/A',
+                'top_seller': 'N/A',
+                'seller_hist_net': 'N/A',
+                'seller_avg_price': '0',
+                'vwap': ta_data.get('vwap', 0),
+                'price_change': ta_data.get('change_pct', 0),
+                'top1_buy_price': 0,
+                'top1_sell_price': 0,
+                'status_header': 'N/A' 
+            }
+
+            # PROCESS BANDARMOLOGY DATA (If fetched)
+            if real_bandar and hist_raw:
+                # A. Real-Time Snapshot
+                bs_data = real_bandar.get('broker_summary', {})
+                ff_data = real_bandar.get('foreign_flow', {})
+                context_data['today_summary'] = bs_data.get('summary', 'N/A')
+                
+                # Update Base TA Data
+                ta_data['bandar_status'] = bs_data.get('status', 'Neutral')
+                ta_data['foreign_status'] = ff_data.get('status', 'N/A')
+                
+                # B. Historical & Cumulative Analysis
+                # Process the fetched history
+                broker_history_df = self.quant_engine.analyze_historical_broker_summary(hist_raw)
+                cum_summary = self.quant_engine.get_cumulative_broker_summary(hist_raw)
+                
+                # Chart Data: Broker Flow
+                broker_flow_df = self.quant_engine.prepare_broker_flow_data(hist_raw)
+                
+                # Identify Focus Broker (Cumulative Top Seller)
+                top_seller_code = "N/A"
+                if cum_summary['top_sellers']:
+                    top_seller_code = cum_summary['top_sellers'][0][0]
+                elif bs_data.get('top_seller'):
+                    top_seller_code = bs_data.get('top_seller')
+                
+                context_data['top_seller'] = top_seller_code
+                
+                # Extract Top 1 Prices (Available in bs_data from QuantEngine update)
+                context_data['top1_buy_price'] = bs_data.get('top1_buy_price', 0)
+                context_data['top1_sell_price'] = bs_data.get('top1_sell_price', 0)
+                
+                if top_seller_code != "N/A":
+                    net_vol, avg_price = self.quant_engine.calculate_broker_net_history(hist_raw, top_seller_code)
+                    pos_str = "Net Buy" if net_vol > 0 else "Net Sell"
+                    context_data['seller_hist_net'] = f"{pos_str} ({net_vol:,.0f} Lot)"
+                    context_data['seller_avg_price'] = f"{avg_price:,.0f}"
+
+                # Update Verdict Score (Quant + Tech)
+                # Tech Score approximation
+                tech_score = 50 
+                if "Bullish" in ta_data['trend']: tech_score += 20
+                if "Golden Cross" in ta_data['macd_status']: tech_score += 10
+                
+                final_res = self.quant_engine.calculate_final_verdict(
+                    tech_score=tech_score,
+                    bandar_score=bs_data.get('bandar_score', 0),
+                    foreign_score=ff_data.get('foreign_score', 0)
+                )
+                ta_data['final_score'] = final_res['final_score']
+                ta_data['verdict'] = final_res['verdict']
+
+                # Prepare Summary Lines for Message
+                if broker_history_df is not None and not broker_history_df.empty:
+                    last_day = broker_history_df.iloc[-1]
+                    bandar_summary_lines.append(f"Top Buyer: {last_day.get('Top3Buyers', '-')}")
+                    bandar_summary_lines.append(f"Top Seller: {last_day.get('Top3Sellers', '-')}")
+
+            # News Logging (Already fetched)
+            self.log("🌍 Berita Terambil via Parallel Fetch.")
             
-            # 5. Chart Generation
-            self.log("📈 Membuat Chart...")
+            # 4. AI Agents (Dual Core - Parallel)
+            self.log("🧠 Melakukan Riset AI (Forensic & Technical) via Parallel Agents...")
+            
+            with concurrent.futures.ThreadPoolExecutor() as ai_executor:
+                future_ai_tech = ai_executor.submit(get_technical_analysis, ta_data['ticker'], ta_data, news_summary)
+                # Only run forensic if context exists, but we can submit it anyway and handle inside or guard here
+                if context_data.get('top_seller') != 'N/A' or context_data.get('today_summary') != 'N/A':
+                    future_ai_forensic = ai_executor.submit(get_bandarmology_analysis, ta_data['ticker'], context_data)
+                else:
+                    # Mock future if no bandar data (rare for IDX)
+                    future_ai_forensic = None
+                
+                try:
+                    ai_tech = future_ai_tech.result()
+                    if future_ai_forensic:
+                        ai_forensic = future_ai_forensic.result()
+                    else:
+                        ai_forensic = {"status": "N/A", "analysis": "Data Bandar Tidak Cukup"}
+                except Exception as e:
+                    self.log(f"❌ Error in Parallel AI: {e}")
+                    ai_tech = {'analysis': f"Error: {e}", 'action': 'ERROR'}
+                    ai_forensic = {}
+            
             if progress_callback: progress_callback(0.8)
-            chart_path = generate_chart(ta_data['ticker'], ta_data['df_daily'])
             
-            # 6. Formatting
-            ai_text = ai_analysis
-            sentiment_score = 50
-            if isinstance(ai_analysis, dict):
-                ai_text = ai_analysis.get('analysis', '')
-                sentiment_score = ai_analysis.get('sentiment_score', 50)
+            # 5. Chart Generation (Technical Standard)
+            self.log("📈 Membuat Chart Technical Standard...")
             
-            final_message = format_message(ta_data['ticker'], ta_data, ai_text, news_summary)
+            # User requested to "remove broker chart and bring back technical chart"
+            # So we stick to chart_mode='technical' even if we have broker flow data.
+            chart_path = generate_chart(
+                ta_data['ticker'], 
+                ta_data['df_daily'], 
+                broker_history_df=broker_history_df,
+                broker_flow_df=broker_flow_df,
+                chart_mode='technical' 
+            )
             
-            # 7. Save (Only daily to DB for now to avoid schema change complexity)
+            # 6. Formatting The Report (STOCK INTELLIGENCE Template)
+            
+            # Extract AI Contents
+            tech_analysis_text = ai_tech.get('analysis', str(ai_tech)) if isinstance(ai_tech, dict) else str(ai_tech)
+            trading_plan = ai_tech.get('trading_plan', {})
+            tech_action = ai_tech.get('action', 'WAIT_AND_SEE')
+            
+            forensic_status = ai_forensic.get('status', 'NETRAL') if isinstance(ai_forensic, dict) else 'NETRAL'
+            forensic_analysis = ai_forensic.get('analysis', '-') if isinstance(ai_forensic, dict) else '-'
+            forensic_warning = ai_forensic.get('warning', '') if isinstance(ai_forensic, dict) else ''
+            
+            # Build Sections
+            
+            # Header
+            msg = f"🚨 *STOCK INTELLIGENCE: {ticker}*\n"
+            msg += f"🎯 *VERDICT: {tech_action}* (Conf: {ta_data.get('final_score',0)}%)\n"
+            msg += f"Harga: {ta_data['price']:.0f} 📉\n\n"
+            
+            # Section 1: Data Teknikal
+            msg += "📊 *DATA TEKNIKAL & VOLUME FLOW*\n"
+            msg += f"* Tren: {ta_data['trend']}\n"
+            msg += f"* Candle: {ta_data.get('candle_pattern', '-')}\n"
+            msg += f"* MACD: {ta_data['macd_status']}\n"
+            msg += f"* Volume: {ta_data['vol_status']} (Ratio: {ta_data['vol_ratio']:.2f}x)\n"
+            msg += f"* Foreign Flow: {ta_data.get('foreign_status', '-')}\n"
+            msg += f"* Bandar Status: {ta_data.get('bandar_status', '-')}\n"
+            msg += f"* Detail: {bandar_summary_lines[0] if bandar_summary_lines else '-'} vs {bandar_summary_lines[1] if len(bandar_summary_lines)>1 else '-'}\n"
+            msg += f"* RSI: {ta_data['rsi']:.2f} | ADX: {ta_data.get('adx',0):.2f}\n\n"
+            
+            # Section 2: Fundamental
+            val = ta_data.get('valuation', {})
+            msg += "💰 *FUNDAMENTAL & VALUASI*\n"
+            msg += f"* Status: {val.get('valuation_status', '-')}\n"
+            msg += f"* PER: {val.get('per',0):.2f}x | PBV: {val.get('pbv',0):.2f}x\n"
+            # Market Cap Formatting
+            mc_val = val.get('market_cap', 0)
+            mc_str = "0 M"
+            if mc_val > 1_000_000_000_000: # Trillion
+                mc_str = f"{mc_val/1e12:.2f} T (IDR)"
+            else:
+                mc_str = f"{mc_val/1e9:.0f} M (IDR)"
+            
+            msg += f"* ROE: {val.get('roe',0)*100:.2f}% | MarCap: {mc_str}\n\n"
+            
+            msg += "📣 *SYSTEM SCAN: MARKET INTELLIGENCE*\n\n"
+            
+            # Section 3: Analisa Struktur (Technical Agent)
+            msg += "1️⃣ *ANALISA STRUKTUR CHART*\n"
+            msg += f"* Trend: {ta_data['trend']}\n"
+            msg += f"* Key Levels:\n  - Support: {ta_data['support']:.0f}\n  - Resistance: {ta_data['resistance']:.0f}\n"
+            if "pivot" in ta_data: msg += f"  - Pivot: {ta_data['pivot']:.0f}\n"
+            msg += "* Analisa Teknikal:\n"
+            msg += f"\"{tech_analysis_text}\"\n\n"
+            
+            # Section 4: Bandarmology Forensic
+            msg += "2️⃣ *BANDARMOLOGY (FORENSIC)*\n"
+            msg += f"* Status: {forensic_status}\n"
+            if bandar_summary_lines:
+                msg += f"* Peta Kekuatan:\n{bandar_summary_lines[0]}\n{bandar_summary_lines[1]}\n"
+            msg += f"* Insight: {forensic_analysis}\n"
+            if forensic_warning:
+                msg += f"⚠️ *WARNING: {forensic_warning}*\n"
+            msg += "\n"
+            
+            # Section 5: Trading Plan
+            msg += "🎯 *TRADING PLAN & EXECUTION*\n"
+            if trading_plan:
+                msg += f"✅ *ENTRY IDEAL*: {trading_plan.get('buy_area', '-')}\n"
+                msg += f"💸 *TARGET PRICE*: {trading_plan.get('target_profit', '-')}\n"
+                msg += f"❎ *STOP LOSS*: {trading_plan.get('stop_loss', '-')}\n"
+            else:
+                msg += "Waiting for clear setup.\n"
+            msg += f"📉 *RISK-REWARD*: Calculated by Pivot\n\n"
+            
+            # Section 6: Sentimen Berita
+            msg += "🌍 *SENTIMEN BERITA (Update):*\n"
+            if news_summary:
+                # Truncate news to first 3 lines/bullets
+                news_lines = news_summary.split('\n')
+                msg += "\n".join(news_lines[:5])
+            else:
+                msg += "- Tidak ada berita signifikan terbaru."
+                
+            msg += "\n\nDibuat oleh StockSignal Bot"
+            
+            # Save (Daily)
             if timeframe == "daily":
-                db_manager.save_analysis(ta_data['ticker'], ta_data, ai_text, final_message)
+                db_manager.save_analysis(ta_data['ticker'], ta_data, tech_analysis_text, msg)
             
             self.log("✅ Analisa Selesai.")
             if progress_callback: progress_callback(1.0)
             
-            return final_message, chart_path, sentiment_score
+            return msg, chart_path, ta_data.get('final_score', 50)
             
         except Exception as e:
             self.log(f"❌ Error during analysis: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise e
 
     def send_whatsapp_message(self, phone, message, image_path=None):
@@ -467,4 +643,3 @@ class StockAppController:
         except Exception as e:
             self.log(f"❌ Failed to save config: {e}")
             return False
-

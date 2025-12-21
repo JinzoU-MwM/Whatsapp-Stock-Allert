@@ -16,49 +16,16 @@ if %errorlevel% neq 0 (
     exit
 )
 
-:: --- 2. SETUP VIRTUAL ENVIRONMENT ---
-if not exist "venv" (
-    echo [SETUP] Creating Python Virtual Environment...
-    python -m venv venv
-    if %errorlevel% neq 0 (
-        echo [ERROR] Failed to create venv.
-        pause
-        exit
-    )
+:: --- 2. CHECK & SETUP DEPENDENCIES ---
+if not exist ".installed" (
+    echo [FIRST RUN] Installing dependencies...
+    call install_dependencies.bat
+) else (
+    echo [READY] Dependencies already installed. Skipping check.
 )
 
-:: --- 3. INSTALL PYTHON REQUIREMENTS ---
-echo [SETUP] Checking Python dependencies...
+:: Activate venv for launch
 call venv\Scripts\activate.bat
-
-:: Upgrade pip first to avoid issues
-python -m pip install --upgrade pip >nul 2>&1
-
-:: Install requirements (will skip if already satisfied)
-pip install -r requirements.txt
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to install requirements.txt
-    pause
-    exit
-)
-
-:: --- 4. CHECK NODE.JS ---
-call npm --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed!
-    echo Please install Node.js ^(LTS^) from https://nodejs.org/
-    echo This is required for the WhatsApp connection.
-    pause
-    exit
-)
-
-:: --- 5. SETUP WHATSAPP SERVICE ---
-if not exist "whatsapp-service\node_modules" (
-    echo [SETUP] Installing WhatsApp Service dependencies...
-    cd whatsapp-service
-    call npm install
-    cd ..
-)
 
 :: --- 6. LAUNCH APPLICATION ---
 echo [READY] All systems go! Launching Dashboard...

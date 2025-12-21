@@ -81,6 +81,60 @@ class GoApiClient:
                 
         return None
 
+    def get_broker_summary_historical(self, ticker, days=5):
+        """
+        Fetches Broker Summary for the last N trading days.
+        Returns a dictionary: {date_str: broker_summary_list}
+        """
+        if not self.api_key: return None
+        
+        # Get past trading dates
+        # Use simple business day logic for now (backward from today)
+        results = {}
+        today = datetime.date.today()
+        
+        # Simple loop to find last N weekdays
+        # Note: This might hit non-trading holidays, but GoAPI usually just returns empty for those.
+        # We try to get slightly more days to account for weekends/holidays
+        attempts = 0
+        found_days = 0
+        current_date = today
+        
+        print(f"   [GoAPI] Fetching {days} days of broker history for {ticker}...")
+        
+        while found_days < days and attempts < (days * 2 + 5):
+            attempts += 1
+            # Skip weekends
+            if current_date.weekday() >= 5:
+                current_date -= datetime.timedelta(days=1)
+                continue
+                
+            d_str = current_date.strftime("%Y-%m-%d")
+            
+            # Fetch individual day
+            try:
+                # Reuse the single fetch logic manually to avoid redundant date calculation overhead
+                url = f"{self.base_url}/{ticker}/broker_summary"
+                params = {"date": d_str}
+                
+                response = requests.get(url, headers=self.headers, params=params, timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'data' in data and 'results' in data['data']:
+                        res = data['data']['results']
+                        if res:
+                            results[d_str] = res
+                            found_days += 1
+                            # print(f"       Found data for {d_str}")
+                
+            except Exception as e:
+                # print(f"       Error fetching {d_str}: {e}")
+                pass
+                
+            current_date -= datetime.timedelta(days=1)
+            
+        return results
+
     def get_foreign_flow(self, ticker, date=None):
         """
         Fetches Foreign Flow (Net Foreign Buy/Sell).
@@ -212,4 +266,35 @@ class GoApiClient:
         except Exception as e:
             print(f"GoAPI Indicators Error: {e}")
             
-        return None
+    def get_news(self, ticker=None, limit=10):
+        """
+        Fetches news from GoAPI.
+        Endpoint: /stock/idx/news
+        Optional param: symbol (defaults to None for general news)
+        """
+        if not self.api_key: return []
+        
+        url = f"{self.base_url}/news"
+        params = {}
+        if ticker:
+            # Clean ticker if needed (e.g. remove .JK if API expects just code)
+            # Most IDX APIs take just the code "BBCA", but let's try raw first or clean it.
+            # My probe used BBCA and it worked.
+            clean_ticker = ticker.replace(".JK", "")
+            params['symbol'] = clean_ticker
+            
+        params['limit'] = limit
+        
+        try:
+            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data and 'results' in data['data']:
+                    return data['data']['results']
+                elif 'data' in data and isinstance(data['data'], list):
+                    # Sometimes data is direct list
+                    return data['data']
+        except Exception as e:
+            print(f"GoAPI News Error: {e}")
+            
+        return []

@@ -34,6 +34,7 @@ class Sidebar(ctk.CTkFrame):
                                              fg_color="transparent", hover_color="#333", border_width=1, border_color="gray", text_color="gray",
                                              anchor="w", width=180, height=30,
                                              command=self.app.show_portfolio_view)
+        # Shifted row down
         self.btn_nav_portfolio.grid(row=3, column=0, padx=20, pady=2)
 
         # Settings Button (Inactive by default)
@@ -43,30 +44,31 @@ class Sidebar(ctk.CTkFrame):
                                              command=self.app.show_settings_view)
         self.btn_nav_settings.grid(row=4, column=0, padx=20, pady=2)
 
+
         # 3. Status
         self.status_label = ctk.CTkLabel(self, text="SYSTEM: INIT...", text_color="gray", font=ctk.CTkFont(size=10))
-        self.status_label.grid(row=5, column=0, padx=20, pady=(10, 5))
+        self.status_label.grid(row=6, column=0, padx=20, pady=(10, 5))
         
         # 4. QR Button (Hidden by default or shown if needed)
         self.qr_btn = ctk.CTkButton(self, text="LINK WHATSAPP", command=self.app.show_qr_modal, 
                                   fg_color="#333", border_width=1, border_color="gray", width=180, height=30)
-        self.qr_btn.grid(row=6, column=0, padx=20, pady=5)
+        self.qr_btn.grid(row=7, column=0, padx=20, pady=5)
         
         # 5. Favorites Section
         self.fav_label = ctk.CTkLabel(self, text="FAVORITE TICKERS", font=ctk.CTkFont(size=11, weight="bold"), text_color="#aaa")
-        self.fav_label.grid(row=7, column=0, padx=20, pady=(15, 5), sticky="w")
+        self.fav_label.grid(row=8, column=0, padx=20, pady=(15, 5), sticky="w")
 
         # REDUCED HEIGHT DRASTICALLY (140 -> 100)
         self.fav_frame = ctk.CTkScrollableFrame(self, width=180, height=100, fg_color="transparent")
-        self.fav_frame.grid(row=8, column=0, padx=10, pady=2)
+        self.fav_frame.grid(row=9, column=0, padx=10, pady=2)
         
         # 6. History Section
         self.hist_label = ctk.CTkLabel(self, text="RECENT HISTORY", font=ctk.CTkFont(size=11, weight="bold"), text_color="#aaa")
-        self.hist_label.grid(row=9, column=0, padx=20, pady=(15, 5), sticky="w")
+        self.hist_label.grid(row=10, column=0, padx=20, pady=(15, 5), sticky="w")
         
         # REDUCED HEIGHT DRASTICALLY (120 -> 80)
         self.hist_frame = ctk.CTkScrollableFrame(self, width=180, height=80, fg_color="transparent")
-        self.hist_frame.grid(row=10, column=0, padx=10, pady=2)
+        self.hist_frame.grid(row=11, column=0, padx=10, pady=2)
         
         # 20. Logout Button (Sticky Bottom)
         self.logout_btn = ctk.CTkButton(self, text="DISCONNECT WA", command=self.app.logout_whatsapp, 
@@ -78,42 +80,59 @@ class Sidebar(ctk.CTkFrame):
         self.logout_btn.grid_remove() # Hidden initially
 
     def update_lists(self):
-        # Refresh Favorites
-        for widget in self.fav_frame.winfo_children():
-            widget.destroy()
+        try:
+            if not self.winfo_exists(): return
             
-        favorites = self.controller.get_favorites()
-        if not favorites:
-            ctk.CTkLabel(self.fav_frame, text="No Favorites", text_color="gray", font=("Arial", 10)).pack()
-        else:
-            for ticker in favorites:
-                row = ctk.CTkFrame(self.fav_frame, fg_color="transparent")
-                row.pack(fill="x", pady=2)
+            # Helper to safely clear a frame
+            def clear_frame(frame):
+                children = list(frame.winfo_children())
+                for widget in children:
+                    try: 
+                        widget.pack_forget()
+                        widget.grid_forget()
+                    except: pass
                 
-                # Load Ticker on Click
-                btn = ctk.CTkButton(row, text=f"★ {ticker}", width=120, height=28, anchor="w", fg_color="transparent", hover_color="#333",
-                                  font=ctk.CTkFont(size=12),
-                                  command=lambda t=ticker: self.app.load_ticker(t))
-                btn.pack(side="left", padx=2)
-                
-                # Delete Button
-                del_btn = ctk.CTkButton(row, text="×", width=25, height=25, fg_color="transparent", hover_color="#500", text_color="gray",
-                                      command=lambda t=ticker: self.remove_favorite(t))
-                del_btn.pack(side="right", padx=2)
+                # Small delay/update? No, just destroy after unmap should be enough
+                for widget in children:
+                    try: widget.destroy()
+                    except: pass
 
-        # Refresh History
-        for widget in self.hist_frame.winfo_children():
-            widget.destroy()
+            # Refresh Favorites
+            clear_frame(self.fav_frame)
             
-        history = self.controller.get_history(limit=15)
-        if not history:
-            ctk.CTkLabel(self.hist_frame, text="No History", text_color="gray", font=("Arial", 10)).pack()
-        else:
-            for ticker in history:
-                btn = ctk.CTkButton(self.hist_frame, text=f"• {ticker}", height=24, anchor="w", fg_color="transparent", hover_color="#333",
-                                  text_color="#ccc", font=ctk.CTkFont(size=11),
-                                  command=lambda t=ticker: self.app.load_ticker(t))
-                btn.pack(fill="x", pady=1)
+            favorites = self.controller.get_favorites()
+            if not favorites:
+                ctk.CTkLabel(self.fav_frame, text="No Favorites", text_color="gray", font=("Arial", 10)).pack()
+            else:
+                for ticker in favorites:
+                    row = ctk.CTkFrame(self.fav_frame, fg_color="transparent")
+                    row.pack(fill="x", pady=2)
+                    
+                    # Load Ticker on Click
+                    btn = ctk.CTkButton(row, text=f"★ {ticker}", width=120, height=28, anchor="w", fg_color="transparent", hover_color="#333",
+                                      font=ctk.CTkFont(size=12),
+                                      command=lambda t=ticker: self.app.load_ticker(t))
+                    btn.pack(side="left", padx=2)
+                    
+                    # Delete Button
+                    del_btn = ctk.CTkButton(row, text="×", width=25, height=25, fg_color="transparent", hover_color="#500", text_color="gray",
+                                          command=lambda t=ticker: self.remove_favorite(t))
+                    del_btn.pack(side="right", padx=2)
+
+            # Refresh History
+            clear_frame(self.hist_frame)
+            
+            history = self.controller.get_history(limit=15)
+            if not history:
+                ctk.CTkLabel(self.hist_frame, text="No History", text_color="gray", font=("Arial", 10)).pack()
+            else:
+                for ticker in history:
+                    btn = ctk.CTkButton(self.hist_frame, text=f"• {ticker}", height=24, anchor="w", fg_color="transparent", hover_color="#333",
+                                      text_color="#ccc", font=ctk.CTkFont(size=11),
+                                      command=lambda t=ticker: self.app.load_ticker(t))
+                    btn.pack(fill="x", pady=1)
+        except Exception as e:
+            print(f"Sidebar Update Error (Safe to ignore): {e}")
 
     def remove_favorite(self, ticker):
         self.controller.remove_favorite(ticker)
