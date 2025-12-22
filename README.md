@@ -1,127 +1,86 @@
-# 📈 StockSignal Intelligence v2.5
+# 📈 WhatsApp Stock Intelligence Bot (WSIB)
 
-![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
-![CustomTkinter](https://img.shields.io/badge/GUI-CustomTkinter-0066cc?logo=python)
-![Gemini AI](https://img.shields.io/badge/AI-Gemini%202.0-8E75B2?logo=google)
-![GoAPI](https://img.shields.io/badge/Market%20Data-GoAPI-FF5722?logo=api)
-![License](https://img.shields.io/badge/License-MIT-green)
+**AI-Powered Stock Analysis & Bandarmology Forensic Tool**
 
-**The Ultimate AI-Powered Institutional Trading Assistant for IDX.**
+WSIB is an advanced stock analysis platform that integrates **Technical Analysis**, **Fundamental Valuation**, and **Bandarmology Forensic** into a single, comprehensive report delivered directly via **WhatsApp**. It leverages **Google Gemini 1.5 Pro/Flash** to synthesize complex market data into actionable trading insights.
 
-StockSignal Intelligence v2.5 is a major leap forward, unifying **Technical Analysis**, **Forensic Bandarmology** (Smart Money Flow), and **Real-Time IDX News** into a single, high-speed dashboard. It acts as your personal hedge fund analyst, delivering "Buy/Hold/Sell" insights directly to your desktop and WhatsApp.
+## 🚀 Key Features
 
----
+### 🧠 AI Stock Intelligence
+*   **Unified Analysis**: Combines Technical (Price Action, Indicators), Fundamental (Valuation, Growth), and Bandarmology (Flow Analysis) into one report.
+*   **Gemini 1.5 Powered**: Uses state-of-the-art AI to interpret data, not just display it.
+*   **Smart Agents**:
+    *   **Technical Agent**: Analyzes Trend, Momentum, and Divergence.
+    *   **Forensic Agent**: Detects Accumulation/Distribution, "Inventory Dumping", and Market Maker movements.
+    *   **Fundamental Agent**: Evaluates Valuation (PER/PBV), Profitability (ROE), and Financial Health (DER).
+    *   **CIO Agent**: Synthesizes all inputs into a final **Verdict** (BUY/SELL/WAIT) with a Confidence Score.
 
-## 🚀 What's New in v2.5?
+### 🕵️ Bandarmology Forensic
+*   **Real-Time Flow**: Analyzes daily Broker Summary (Top Buyers/Sellers) to detect Big Player movement.
+*   **Historical Analysis**: Tracks **20-day Cumulative Net Flow** to identify massive accumulation or hidden distribution.
+*   **Broker Flow Chart**: Visualizes Net Volume flow (Green = Accumulation, Red = Distribution) alongside Price action.
 
-### 🧠 Unified Stock Intelligence Engine
-*   **One Report, Total Clarity**: Merged separate Technical and Bandarmology reports into a single comprehensive "Stock Intelligence" output.
-*   **Forensic AI**: New detection algorithms for "Ping-Pong" transactions, "Markdown Accumulation", and "Power Buyer" identification.
-*   **Combined Charting**: Visualizes Price Action overlayed with a **Broker Flow Panel** (Green/Red Bars) for instant accumulation spotting.
+### � Data & Accuracy
+*   **GoAPI Integration (Premium)**:
+    *   **Real-Time Prices**: Accurate market data.
+    *   **Official Broker Summary**: Detailed broker transaction data.
+    *   **Accurate Valuation**: Uses official IDX Profile data for PER, PBV, and EPS (solving common Yahoo Finance errors for stocks like BUMI).
+*   **News Intelligence**:
+    *   Fetches latest news via **GoAPI** (filtered for current year) or **Google Search (Serper)**.
+    *   Ensures you never see outdated headlines.
 
-### 📰 Real-Time IDX News (GoAPI)
-*   **Direct Exchange Data**: Switched news source to **GoAPI IDX News** for 100% relevant, local market updates (no more generic global news noise).
-*   **Smart Fallback**: Automatically switches to Google Search (Serper) if the primary feed is silent.
+### 📱 WhatsApp Integration
+*   **Professional Reports**: Beautifully formatted reports using professional styling (bullets, separators).
+*   **Actionable Plans**: Clear "Action Plan" with Buy Areas, Stop Loss, and Target Prices.
+*   **Chart Delivery**: Sends analyzed charts directly to your chat.
 
-### ⚡ Performance Supercharge
-*   **Parallel Processing**: Data fetching (Tech, Broker, News, Valuation) runs concurrently, reducing analysis time by **~40%**.
-*   **Instant Launch**: Startup sequence optimized to **<1 second** by caching dependency checks.
-*   **Lazy Loading**: Heavy libraries load only when needed, keeping the UI responsive.
+## �️ Installation
 
----
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/JinzoU-MwM/Whatsapp-Stock-Allert.git
+    cd Whatsapp-Stock-Allert
+    ```
 
-## 📸 Dashboard Showcase
+2.  **Install Dependencies**:
+    The system auto-installs on first run, or manually:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-| **Market Analysis** | **Stock Intelligence** | **WhatsApp Alert** |
-|:---:|:---:|:---:|
-| ![Market Dashboard](https://via.placeholder.com/250x150?text=Price+vs+Broker+Flow) | ![Intelligence Report](https://via.placeholder.com/250x150?text=Forensic+Insight) | ![WhatsApp Alert](https://via.placeholder.com/250x150?text=Detailed+Alert) |
+3.  **Configuration**:
+    Create a `.env` file in the root directory:
+    ```env
+    GOOGLE_API_KEY=your_gemini_key
+    SERPER_API_KEY=your_serper_key
+    GOAPI_API_KEY=your_goapi_key
+    TARGET_PHONE=628...
+    AI_MODEL=gemini-1.5-flash
+    ```
 
----
+4.  **WhatsApp Service**:
+    Ideally runs with a companion Node.js service (included in `whatsapp-service/`) utilizing `whatsapp-web.js`.
 
-## ✨ Key Features
+## �️ Usage
 
-*   **🖥️ Professional UI**: Dark-mode dashboard with "Cyberpunk Emerald" accents, Sidebar navigation, and History/Favorites management.
-*   **🐋 Bandarmology V2**:
-    *   **Cumulative Distribution**: Tracks Top 3 Sellers over 20 days.
-    *   **Net Foreign Flow**: Real-time foreign fund tracking.
-    *   **PBV Corrector**: Auto-fixes currency mismatches (e.g., USD financials vs IDR price) for accurate valuations.
-*   **🤖 Gemini 2.0 Brain**:
-    *   **Risk Manager**: Generates concrete Trading Plans (Buy Area, Stop Loss, Target).
-    *   **Sentiment Engine**: Analyzes news tone to gauge market psychology.
-*   **📈 Portfolio Manager**: Real-time P/L tracking with live price updates.
-*   **📱 Smart WhatsApp Integration**: Top-tier connectivity using `whatsapp-web.js` node service for reliable broadcasting.
+### GUI Mode (Recommended)
+Double-click `start_app.bat`.
+1.  **Scan QR Code**: Connect your WhatsApp.
+2.  **Dashboard**:
+    *   **Market**: Quick Technical Analysis.
+    *   **Bandarology**: Deep-dive Broker Flow analysis.
+    *   **Portfolio**: Track your holdings with Real-Time P/L.
 
----
-
-## 📂 Project Structure
-
-```plaintext
-StockSignal-Intelligence/
-├── ui/                     # Modular GUI System (Sidebar, Market, Portfolio)
-├── stock-intelligence/     # Core Analytic Engine
-│   ├── quant_engine.py     # Bandarmology & Broker Summary Logic
-│   ├── technical_analysis.py # Indicators & Valuation Validator
-│   ├── catalyst_agent.py   # AI Prompts (Forensic & Technical)
-│   ├── news_fetcher.py     # Hybrid News (GoAPI + Serper)
-│   └── goapi_client.py     # Direct IDX Data Client
-├── whatsapp-service/       # Node.js Gateway
-├── desktop_app.py          # App Launcher
-└── start_app.bat           # 1-Click Fast Launcher
-```
-
----
-
-## 🛠️ Prerequisites
-
-*   **Python 3.10+**: [Download](https://www.python.org/downloads/) ("Add to PATH" required).
-*   **Node.js (LTS)**: [Download](https://nodejs.org/) (For WhatsApp Gateway).
-
----
-
-## 🚀 Installation & Setup
-
-### 1-Click Launch (Recommended)
-Simply run **`start_app.bat`**.
-*   First run: Installs all dependencies (Python + Node).
-*   Next runs: Launches instantly.
-
-### Manual Setup
+### Command Line
 ```bash
-# Python Setup
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-
-# WhatsApp Service Setup
-cd whatsapp-service
-npm install
-cd ..
-
-# Run
-python desktop_app.py
+python stock-intelligence/main.py BBCA
 ```
 
----
-
-## ⚙️ Configuration
-
-Configure keys in the **Settings Tab** or `.env`:
-
-```ini
-GOOGLE_API_KEY=your_gemini_key       # Intelligence Brain
-GOAPI_API_KEY=your_goapi_key         # Broker Summary & News
-SERPER_API_KEY=your_serper_key       # News Fallback
-TARGET_PHONE=6281234567890@c.us      # Default Alert Receiver
-```
+## 📝 Recent Updates
+*   **BUMI Fix**: Fixed "Merugi" status by switching Valuation data to GoAPI.
+*   **News Filter**: Added strict Year Filter (2025) to prevent outdated news.
+*   **Smart Formatting**: Improved bullet points and nesting for readable Action Plans.
+*   **BSML Fix**: Resolved missing Bandarmology data issues for stocks with limited history.
 
 ---
-
-## ⚠️ Disclaimer
-
-> **DYOR (Do Your Own Research)**
-> This tool provides data-driven insights but does not guarantee profit. Trading stocks involves risk. The developed Confidence Score is experimental.
-
----
-
-## 📄 License
-Distributed under the **MIT License**.
+**Disclaimer**: This tool provides analysis based on data and AI interpretation. It is not financial advice. Always do your own research (DYOR).
