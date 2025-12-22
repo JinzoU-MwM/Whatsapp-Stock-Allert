@@ -3,32 +3,21 @@ title StockSignal Launcher
 cd /d "%~dp0"
 
 echo ========================================================
-echo      StockSignal AI (Auto-Setup ^& Launch)
+echo      StockSignal AI (Launch Mode)
 echo ========================================================
 
-:: --- 1. CHECK PYTHON ---
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed!
-    echo Please install Python 3.10+ from https://www.python.org/downloads/
-    echo IMPORTANT: Check "Add Python to PATH" during installation.
+:: 1. Verify Installation
+if not exist "venv" (
+    echo [ERROR] Virtual Environment not found!
+    echo.
+    echo Please run 'install_dependencies.bat' FIRST to set up the application.
+    echo.
     pause
     exit
 )
 
-:: --- 2. CHECK & SETUP DEPENDENCIES ---
-if not exist ".installed" (
-    echo [FIRST RUN] Installing dependencies...
-    call install_dependencies.bat
-) else (
-    echo [READY] Dependencies already installed. Skipping check.
-)
-
-:: Activate venv for launch
-call venv\Scripts\activate.bat
-
-:: --- 6. LAUNCH APPLICATION ---
-echo [READY] All systems go! Launching Dashboard...
+:: 2. Activate & Launch
+echo [READY] Launching Dashboard...
 :: Start pythonw (no console) for the GUI
 start /B "" "venv\Scripts\pythonw.exe" desktop_app.py
 

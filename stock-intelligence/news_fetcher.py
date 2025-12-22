@@ -23,16 +23,28 @@ def fetch_stock_news(ticker):
             if news_list:
                 print(f"Mengambil Berita Real-Time untuk {ticker} via GoAPI...")
                 formatted_news = []
+                
+                import datetime
+                current_year = str(datetime.datetime.now().year)
+
                 for item in news_list:
                     # Adjust fields based on GoAPI response structure
                     title = item.get('title', 'No Title')
                     # some apis return 'published_at' or 'date'
                     date_str = item.get('published_at', '') or item.get('date', '')
                     url = item.get('url', '#')
+                    
+                    # STRICT DATE FILTER: Only this year
+                    if date_str and not date_str.startswith(current_year):
+                        continue
+                        
                     # GoAPI might not have snippet, just title
                     formatted_news.append(f"- [{title}]({url}) {date_str}")
                 
-                return "\n".join(formatted_news)
+                if formatted_news:
+                     return "\n".join(formatted_news)
+                else:
+                     print(f"GoAPI found news but none from {current_year}. Falling back to Serper.")
         except Exception as e:
             print(f"GoAPI News Failed, falling back to Serper: {e}")
 
@@ -52,13 +64,16 @@ def fetch_stock_news(ticker):
     # Specific query for Indonesian market context
     # Specific query for Indonesian market context
     # Enforce Indonesia/IDX context strongly as requested by user
+    import datetime
+    current_year = datetime.datetime.now().year
+    
     if ".JK" in ticker or (len(clean_ticker) == 4 and clean_ticker.isalpha()):
         # Use quotes for exact match to avoid random news
-        # Add "IDX" and "Indonesia" to ensure no other country's stock is fetched
-        query = f'Saham "{clean_ticker}" IDX Indonesia berita terkini'
+        # Add "IDX", "Indonesia" and YEAR to ensure strict relevance
+        query = f'Saham "{clean_ticker}" IDX Indonesia berita terkini {current_year}'
     else:
         # Fallback for others, but still bias towards ID via gl parameter below
-        query = f'"{clean_ticker}" stock news Indonesia'
+        query = f'"{clean_ticker}" stock news Indonesia {current_year}'
 
     payload = json.dumps({
         "q": query,

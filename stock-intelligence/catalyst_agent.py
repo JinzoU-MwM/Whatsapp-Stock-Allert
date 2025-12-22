@@ -2,6 +2,8 @@ import os
 import google.generativeai as genai
 from datetime import datetime
 from dotenv import load_dotenv
+import json
+import re
 
 # Load environment variables
 load_dotenv()
@@ -13,29 +15,17 @@ def _get_model():
         return None
     
     genai.configure(api_key=current_api_key)
-    # Get configured model from env, default to gemini-1.5-flash (Fastest/Stable)
     model_name = os.getenv("AI_MODEL", "gemini-1.5-flash")
     
-    # Enable Google Search Grounding ("MCP Browser" equivalent for Gemini)
-    # This allows the model to search the web for catalysts if it needs more info.
-    tools = [
-        {"google_search": {}} 
-    ]
-    
-    # Try initializing with tools (supported in recent SDKs)
+    tools = [{"google_search": {}}]
     try:
         return genai.GenerativeModel(model_name, tools=tools)
     except:
-        # Fallback for older SDKs
-        print("Warning: Google Search Grounding not supported in this SDK version. Using standard model.")
+        print("Warning: Google Search Grounding not supported. Using standard model.")
         return genai.GenerativeModel(model_name)
 
 def _clean_json_response(text):
     """Helper to extract and parse JSON from AI response."""
-    import re
-    import json
-    
-    # 1. Regex Match for JSON block
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         try:
@@ -43,25 +33,24 @@ def _clean_json_response(text):
         except:
             pass
 
-    # 2. Markdown Cleanup
     if text.startswith("```json"):
         text = text.replace("```json", "").replace("```", "").strip()
 
-    # 3. Direct Parse
     try:
         return json.loads(text)
     except:
-        # Fallback
         return {
             "sentiment_score": 50,
-            "analysis": text
+            "analysis": text,
+            "status": "ERROR",
+            "action": "WAIT"
         }
 
-# --- 1. TECHNICAL AGENT ---
+# --- 1. TECHNICAL AGENT (USER VERSION) ---
 def get_technical_analysis(ticker, ta_data, news_summary=""):
     """
     Supercharged Technical Agent.
-    Now includes: Psychology reading, Divergence check, and ATR-based Targets.
+    Focus: Market Structure, Trend, Momentum, Volatility.
     """
     model = _get_model()
     if not model: return {"sentiment_score": 50, "analysis": "API Key Missing"}
@@ -71,6 +60,12 @@ def get_technical_analysis(ticker, ta_data, news_summary=""):
     prompt = f"""
     Bertindaklah sebagai Senior Trader & Risk Manager. 
     Tugasmu bukan hanya membaca indikator, tapi menyusun TRADING PLAN untuk saham {ticker}.
+    
+    [ANTI-HALLUCINATION POLICY]:
+    1. STRICTLY use the provided data below. Do NOT invent numbers.
+    2. If data is 'N/A' or 0, state it as "Unknown" or "Neutral".
+    3. Do not assume news if not provided in "BERITA & SENTIMEN".
+    4. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA). Do not use English for the analysis text.
 
     DATA PASAR (DATAFAKTA):
     - Harga Terakhir: {ta_data['price']:.0f}
@@ -82,6 +77,12 @@ def get_technical_analysis(ticker, ta_data, news_summary=""):
     
     DATA HISTORIS SINGKAT:
     {ta_data.get('recent_history', 'N/A')}
+    
+    LEVEL PIVOT (SUPPORT/RESISTANCE REFERENSI):
+    - Pivot: {ta_data.get('pivots', {}).get('pivot', 'N/A')}
+    - Support: S1={ta_data.get('pivots', {}).get('s1', 'N/A')}, S2={ta_data.get('pivots', {}).get('s2', 'N/A')}
+    - Resistance: R1={ta_data.get('pivots', {}).get('r1', 'N/A')}, R2={ta_data.get('pivots', {}).get('r2', 'N/A')}
+    (Gunakan level ini untuk menentukan Entry, SL, dan TP yang presisi)
 
     BERITA & SENTIMEN:
     {news_summary}
@@ -105,18 +106,17 @@ def get_technical_analysis(ticker, ta_data, news_summary=""):
         }}
     }}
     """
-    
     try:
         response = model.generate_content(prompt)
         return _clean_json_response(response.text.strip())
     except Exception as e:
         return {"sentiment_score": 50, "analysis": f"Error: {e}"}
 
-# --- 2. BANDARMOLOGY AGENT ---
+# --- 2. BANDARMOLOGY AGENT (UPDATED USER VERSION) ---
 def get_bandarmology_analysis(ticker, context_data):
     """
     Forensic Bandarmology Agent.
-    Now capable of detecting 'Old Inventory Distribution' like the COAL case.
+    Includes Foreign Flow, Valuation Context, and Detailed Broker Forensics.
     """
     model = _get_model()
     if not model: return {"sentiment_score": 50, "analysis": "API Key Missing"}
@@ -126,7 +126,7 @@ def get_bandarmology_analysis(ticker, context_data):
     # Extract Context
     bs_today = context_data.get('today_summary', 'N/A')
     seller_code = context_data.get('top_seller', 'N/A')
-    seller_hist = context_data.get('seller_hist_net', 'N/A') # Misal: "Net Buy 500 Juta" atau "Net Sell 0"
+    seller_hist = context_data.get('seller_hist_net', 'N/A')
     avg_price_seller = context_data.get('seller_avg_price', 0)
     
     # Extract Additional Context
@@ -134,13 +134,39 @@ def get_bandarmology_analysis(ticker, context_data):
     price_change = context_data.get('price_change', 0)
     top1_buy_price = context_data.get('top1_buy_price', 0)
     
+    # Granular Broker Data
+    top3_buyers_raw = context_data.get('top3_buyers', '-')
+    top3_sellers_raw = context_data.get('top3_sellers', '-')
+    
+    # Valuation & Foreign
+    pbv = context_data.get('pbv', 0)
+    per = context_data.get('per', 0)
+    market_cap = context_data.get('market_cap', 0)
+    foreign_flow = context_data.get('foreign_flow', 'N/A')
+    
+    # Format Market Cap
+    if market_cap > 1_000_000_000_000: mcap_str = f"{market_cap/1e12:.2f} Triliun"
+    elif market_cap > 1_000_000_000: mcap_str = f"{market_cap/1e9:.0f} Miliar"
+    else: mcap_str = f"{market_cap:,.0f}"
+    
     prompt = f"""
     ROLE: Investigator Bandarmologi Profesional (Market Flow Detective).
-    TUGAS: Deteksi Kecurangan, Manipulasi, atau Pergerakan Smart Money di saham {ticker}.
+    TUGAS: Analisis aliran dana institusi (smart money) di saham {ticker} dan berikan kesimpulan naratif yang tajam.
 
-    --- 1. DATA FORENSIK UTAMA ---
+    [DATA INTEGRITY RULES]:
+    1. Base your analysis PURELY on the Forensik Data below.
+    2. Do NOT mention specific broker names (ZP, BK, etc.) unless they appear in [PETA KEKUATAN].
+    3. If Top Buyer/Seller data is missing/hyphen, do not guess.
+    4. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA).
+    
+    
+    --- DATA FORENSIK ---
     [SUMMARY HARI INI]: 
     {bs_today}
+    
+    [PETA KEKUATAN (TOP 3)]:
+    - Top Buyer: {top3_buyers_raw}
+    - Top Seller: {top3_sellers_raw}
 
     [JEJAK PENJUAL UTAMA (TOP SELLER)]:
     - Kode Broker: {seller_code}
@@ -151,56 +177,184 @@ def get_bandarmology_analysis(ticker, context_data):
     - VWAP Hari Ini: {vwap:,.0f}
     - Perubahan Harga: {price_change:.2f}%
     - Avg Price Top 1 Buyer: {top1_buy_price:,.0f}
+    
+    [VALUASI & ASING]:
+    - Market Cap: {mcap_str}
+    - PBV: {pbv:.2f}x (Mahal jika > 2x, Murah jika < 1x)
+    - PER: {per:.2f}x
+    - Foreign Flow: {foreign_flow}
+    
+    [DETAIL BROKER TERATAS (AVG & NET)]:
+    - Top Buyers: {top3_buyers_raw}
+    - Top Sellers: {top3_sellers_raw}
 
-    --- 2. LOGIKA DETEKSI (WAJIB ANALISIS) ---
+    --- 2. LOGIKA DETEKSI (GUIDELINES) ---
+    Gunakan logika ini HANYA sebagai referensi cara berpikir.
+    
+    [DAFTAR KATEGORI BROKER]:
+    - RITEL (Lemah): YP, PD, XL, XC, KK, CC, CP, EP, NI.
+    - BANDAR/MACRO (Kuat): BK, AK, ZP, RX, KZ, CS, CD.
+    - SCALPER (Cepat): MG.
 
-    A. [DISTRIBUSI BARANG LAMA - OLD INVENTORY]
-       RULE: Jika Top Seller jualan MASIF hari ini, TAPI data historis kemaren-kemaren TIDAK ada akumulasi (Net Buy kecil/Nol).
-       KESIMPULAN: "MEMBUANG BARANG LAMA" (Barang IPO/Founder/Treasury). 
-       VERDICT: SANGAT BEARISH (Exit Strategy).
+    [LOGIKA ANALISIS]:
+    1. [DISTRIBUSI BARANG LAMA]: Jika Top Seller jualan masif hari ini dan historis netral, waspada exit strategy.
+    2. [TRANSFER OF WEALTH]: Perhatikan siapa makan siapa (Institusi buang ke Ritel = Distribusi).
+    3. [MARKDOWN ACCUMULATION]: Jika harga turun/merah tapi Top Buyer didominasi Institusi yang menampung di harga rata-rata bawah, ini adalah akumulasi senyap.
+    4. [POWER BUYER vs VWAP]: Jika Avg Price Buyer > VWAP = Hajar Kanan (Bullish). Jika << VWAP = Pasang Jaring (Defensif).
 
-    B. [TRANSFER OF WEALTH - RITEL vs BANDAR]
-       RULE: Cek Top Buyer vs Top Seller.
-       - Seller Institusi -> Buyer Ritel (YP, PD, XL, XC, KK, CC, CP, EP)? => DISTRIBUSI.
-       - Seller Institusi -> Buyer Institusi? => TUKAR BARANG / CROSSING.
-       - Seller Ritel -> Buyer Institusi? => AKUMULASI.
-
-    C. [PING-PONG / CHURNING - ARTIFICIAL VOLUME]
-       RULE: 
-         1. Volume Top Buyer ≈ Volume Top Seller (Selisih < 10%).
-         2. Harga Stagnan (Change < 2%).
-       KESIMPULAN: "ARTIFICIAL VOLUME". Volume palsu untuk memancing ritel.
-
-    D. [MARKDOWN ACCUMULATION - AKUMULASI SENYAP]
-       RULE:
-         1. Harga TURUN (Merah).
-         2. Top Buyer = Institusi/Asing.
-         3. Avg Price Buyer <= Closing Price (Dapat barang bawah).
-       KESIMPULAN: "ABSORPTION / BUY ON WEAKNESS". Sinyal Bullish tersembunyi.
-
-    E. [POWER BUYER - AGGRESSIVE ACCUMULATION]
-       RULE: Avg Price Top 1 Buyer > VWAP.
-       KESIMPULAN: "AGGRESSIVE ACCUMULATION (HK)". Bandar berani beli mahal, indikasi target harga tinggi.
-
-    --- 3. DAFTAR BROKER (UPDATE) ---
-    - RITEL (LEMAH): YP, PD, XL, XC, KK, CC, CP (Valbury), EP (MNC).
-    - HYBRID (SCALPER): MG (Semesta) - Sering hit & run, bukan akumulasi jangka panjang.
-
-    --- 4. OUTPUT JSON ---
+    --- FORMAT OUTPUT JSON ---
     {{
         "sentiment_score": (0=Distribusi Total, 50=Netral, 100=Akumulasi Kuat),
         "status": "DISTRIBUSI / AKUMULASI / MARK-DOWN / CHURNING",
-        "analysis": "Analisis tajam max 150 kata. Gunakan Logic A-E di atas. Sebutkan siapa makan siapa.",
-        "warning": "Berikan warning jika terdeteksi 'Jualan Barang Lama' atau 'Churning'."
+        "analysis": "Analisis naratif 1-2 paragraf profesional (Max 150 kata). Fokus pada 'Story' aliran dana. SIAPA yang mendominasi? Apakah bandar agresif atau defensif?",
+        "warning": "Opsional: Isi jika ada bahaya besar seperti 'Exit Strategy Barang Lama' atau 'Jebakan Volume'."
     }}
     """
-    
     try:
         response = model.generate_content(prompt)
         return _clean_json_response(response.text.strip())
     except Exception as e:
         return {"sentiment_score": 50, "analysis": f"Error: {e}"}
 
-# Legacy wrapper for compatibility if needed
-def get_ai_analysis(ticker, ta_data, news_summary=""):
-    return get_technical_analysis(ticker, ta_data, news_summary)
+# --- 3. FUNDAMENTAL AGENT (ADDED) ---
+def get_fundamental_analysis(ticker, financial_data):
+    """
+    Fundamental Agent.
+    Focus: Valuation (Cheap/Expensive) & Health (Safe/Risky).
+    """
+    model = _get_model()
+    if not model: return {"sentiment_score": 50, "analysis": "API Key Missing"}
+
+    print(f"Catalyst: Running Fundamental Scan for {ticker}...")
+
+    prompt = f"""
+    Bertindaklah sebagai Senior Equity Research Analyst (Value Investing approach).
+    Analisis kesehatan finansial emiten {ticker}.
+    
+    [STRICT DATA ONLY]:
+    - Use the provided Financial Data ratios.
+    - Do not retrieve outside data.
+    - If a ratio is 'N/A', ignore it or label as 'Data Unavailable'.
+    - LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA). Use formal investment terms in Indonesian.
+
+    DATA KEUANGAN:
+    - PE Ratio: {financial_data.get('pe_ratio', 'N/A')}
+    - PBV: {financial_data.get('pbv', 'N/A')}
+    - ROE: {financial_data.get('roe', 'N/A')}%
+    - DER (Debt to Equity): {financial_data.get('der', 'N/A')}x
+    - EPS Growth (YoY): {financial_data.get('eps_growth', 'N/A')}%
+
+    TUGAS:
+    1. Valuasi: Apakah saham ini Undervalued, Fair, atau Overvalued?
+    2. Kesehatan: Apakah utang aman (DER < 1.5)? Profitabilitas kuat (ROE > 10%)?
+    3. Growth: Apakah perusahaan bertumbuh?
+
+    OUTPUT JSON:
+    {{
+        "sentiment_score": (0-100, <40=Bad Fundamentals, >70=Strong Fundamentals),
+        "valuation_status": "UNDERVALUED / FAIR / OVERVALUED",
+        "financial_health": "HEALTHY / RISKY / DISTRESS",
+        "analysis": "Ringkasan fundamental max 100 kata. Highlight rasio kunci."
+    }}
+    """
+    try:
+        response = model.generate_content(prompt)
+        return _clean_json_response(response.text.strip())
+    except Exception as e:
+        return {"sentiment_score": 50, "analysis": f"Error: {e}"}
+
+# --- 4. SYNTHESIZER AGENT / CIO (ADDED) ---
+def get_final_verdict(ticker, tech_res, bandar_res, fund_res):
+    """
+    The Boss Agent.
+    Combines Technical + Bandarmology + Fundamental into one final decision.
+    """
+    model = _get_model()
+    if not model: return {"final_score": 0, "final_reasoning": "Model Error"}
+    
+    print(f"Catalyst: Synthesizing Final Verdict for {ticker}...")
+
+    prompt = f"""
+    Anda adalah Chief Investment Officer (CIO). Anda menerima 3 laporan untuk saham {ticker}.
+    Ambil keputusan final: BELI, JUAL, atau TAHAN.
+
+    1. LAPORAN TEKNIKAL:
+       - Score: {tech_res.get('sentiment_score')} | Action: {tech_res.get('action')}
+       - Plan: {tech_res.get('trading_plan', {})}
+       - Insight: {tech_res.get('analysis')}
+
+    2. LAPORAN BANDARMOLOGI:
+       - Score: {bandar_res.get('sentiment_score')} | Status: {bandar_res.get('status')}
+       - Insight: {bandar_res.get('analysis')}
+
+    3. LAPORAN FUNDAMENTAL (WAJIB DIPERTIMBANGKAN):
+       - Score: {fund_res.get('sentiment_score')} 
+       - STATUS VALUASI: {fund_res.get('valuation_status')} (Undervalued/Fair/Overvalued)
+       - Insight: {fund_res.get('analysis')}
+
+    LOGIKA PENIMBANGAN (WEIGHTING):
+    - Jika Fundamental JELEK tapi Teknikal & Bandar BAGUS -> "Speculative Buy" (Short Term only).
+    - Jika Fundamental BAGUS dan Teknikal BAGUS -> "Strong Buy" (Swing/Invest).
+    - Jika Bandarmologi "DISTRIBUSI MASIF", abaikan sinyal Buy teknikal (Risk of False Breakout).
+    - Jika Teknikal "Downtrend" tapi Fundamental & Bandar Bagus -> "Wait for Reversal" (Watchlist).
+
+    [REQUIREMENT: DETAILED ACTION PLAN]:
+    Provide a specific execution strategy including:
+    1. "Risk 1% Rule" calculation example (Assume 100 Mio Portfolio -> Max Risk 1 Mio).
+    2. Position Sizing advice (e.g. "Potong Size 1/3", "Cicil Beli").
+    3. Strict Exit rules (e.g. "Buang jika closing di bawah support").
+    
+    LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA). Semua output harus dalam Bahasa Indonesia.
+
+    OUTPUT JSON:
+    {{
+        "final_score": (0-100),
+        "primary_strategy": "SWING_TRADE / INVESTING / SCALPING / AVOID",
+        "conviction_level": "HIGH / MEDIUM / LOW",
+        "final_reasoning": "Kesimpulan tegas max 3 kalimat. Gabungkan ketiga perspektif.",
+        "recommended_action": "BUY / SELL / WAIT",
+        "allocation_size": "SMALL (5%) / MEDIUM (15%) / AGGRESSIVE (25%) / ZERO",
+        "action_plan": "Tulis rencana eksekusi detail (Risk Rule, Cicil Beli, Cut Loss) dalam format poin-poin singkat."
+    }}
+    """
+    try:
+        response = model.generate_content(prompt)
+        return _clean_json_response(response.text.strip())
+    except Exception as e:
+        return {"final_score": 0, "final_reasoning": f"Error: {e}"}
+
+# --- MAIN RUNNER EXAMPLE ---
+if __name__ == "__main__":
+    # Contoh Data Dummy (Anda ganti dengan data real dari API/Database Anda)
+    ticker = "BBRI"
+    
+    # 1. Dummy Technical Data
+    ta_data = {
+        "price": 4500, "trend": "Uptrend", "adx": 30, "vol_status": "High", 
+        "vol_ratio": 1.5, "rsi": 65, "macd_status": "Golden Cross", "atr": 50,
+        "recent_history": "Saham rebound dari support 4300."
+    }
+    
+    # 2. Dummy Bandarmology Data
+    bandar_data = {
+        "today_summary": "ZP dan AK akumulasi masif.",
+        "top_seller": "YP", "seller_hist_net": "Netral", "seller_avg_price": 4480,
+        "vwap": 4490, "price_change": 2.5, "top1_buy_price": 4510,
+        "top3_buyers": "ZP, AK, BK", "top3_sellers": "YP, PD, CC",
+        "market_cap": 600_000_000_000_000, "pbv": 2.5, "per": 12, "foreign_flow": "Net Buy 50B"
+    }
+
+    # 3. Dummy Fundamental Data
+    fund_data = {
+        "pe_ratio": 12.5, "pbv": 2.5, "roe": 18, "der": 0.8, "eps_growth": 10
+    }
+
+    # Execute Pipeline
+    tech_res = get_technical_analysis(ticker, ta_data)
+    bandar_res = get_bandarmology_analysis(ticker, bandar_data)
+    fund_res = get_fundamental_analysis(ticker, fund_data)
+    
+    final = get_final_verdict(ticker, tech_res, bandar_res, fund_res)
+    
+    print("\n--- FINAL VERDICT ---")
+    print(json.dumps(final, indent=2))

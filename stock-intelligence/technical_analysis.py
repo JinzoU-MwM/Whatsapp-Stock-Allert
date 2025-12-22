@@ -70,6 +70,32 @@ def get_valuation_data(ticker):
         "market_cap": 0, "valuation_status": "N/A"
     }
     
+    import os
+    goapi_key = os.getenv("GOAPI_API_KEY")
+    
+    # 1. Try GoAPI First (If Available)
+    if goapi_key:
+        try:
+            from goapi_client import GoApiClient
+            client = GoApiClient(goapi_key)
+            profile = client.get_profile(ticker)
+            
+            if profile:
+                print(f"   [Valuation] Using GoAPI Data for {ticker}")
+                # Map GoAPI fields to our structure
+                # GoAPI fields: 'per', 'pbv', 'roe', 'eps', 'market_cap'
+                valuation_data['per'] = float(profile.get('per', 0) or 0)
+                valuation_data['pbv'] = float(profile.get('pbv', 0) or 0)
+                valuation_data['roe'] = float(profile.get('roe', 0) or 0)
+                valuation_data['eps'] = float(profile.get('eps_ttm', 0) or profile.get('eps', 0) or 0)
+                valuation_data['market_cap'] = float(profile.get('market_cap', 0) or 0)
+                valuation_data['valuation_status'] = _determine_valuation_status(valuation_data['per'], valuation_data['pbv'])
+                
+                # Close gap with other logic
+                return valuation_data
+        except Exception as e:
+            print(f"   [Valuation] GoAPI Failed: {e}, falling back to YFinance")
+
     try:
         # Valuation often requires strict suffix for IDX (e.g. BBCA.JK)
         val_tickers_to_try = []
@@ -96,12 +122,29 @@ def get_valuation_data(ticker):
             return valuation_data
         
         # Extract Data with Fallbacks
-        pe_ratio = info.get('trailingPE', info.get('forwardPE', 0))
+        current_price = info.get('regularMarketPrice', info.get('currentPrice', 0))
+        eps = info.get('trailingEps', info.get('forwardEps', 0))
+        
+        # 1. Try standard fields
+        pe_ratio = info.get('trailingPE', info.get('forwardPE'))
+        
+        # 2. Fallback: Calculate manually if PE is None but we have Price & EPS (handles negative earnings)
+        if pe_ratio is None and current_price and eps and eps != 0:
+            pe_ratio = current_price / eps
+            
+        # 3. Final default to 0 if still None
+        if pe_ratio is None:
+            pe_ratio = 0
+
         pbv = info.get('priceToBook', 0)
         roe = info.get('returnOnEquity', 0)
-        eps = info.get('trailingEps', info.get('forwardEps', 0))
         div_yield = info.get('dividendYield', 0)
         market_cap = info.get('marketCap', 0)
+        # New Metrics for Fundamental Agent
+        der = info.get('debtToEquity', 0)
+        eps_growth = info.get('earningsGrowth', 0) # This is usually decimal (0.15 for 15%)
+        if eps_growth: eps_growth = eps_growth * 100 # Convert to %
+        
         currency = info.get('currency', 'IDR')
         fin_currency = info.get('financialCurrency', currency) # Default to same if missing
         
@@ -116,30 +159,20 @@ def get_valuation_data(ticker):
             eps = eps * usd_idr_rate
             
         # Case B: Quote in IDR, but Financials (Book Value) in USD (Common for Energy/Mining like ADRO, ITMG)
-        # Symptom: PBV is massive (>1000x) because it divides IDR Price by USD Book Value
         if fin_currency == 'USD' and currency == 'IDR':
-             if pbv > 100: # Sanity check: Only fix if it looks broken
+             if pbv > 100: 
                  print(f"   [Valuation] Detected IDR/USD Mismatch for {ticker} (PBV {pbv:.0f}x). Adjusting...")
                  pbv = pbv / usd_idr_rate
-                 # Also adjust EPS if it was raw USD
-                 # Yahoo usually handles EPS better, but let's check:
-                 # If EPS is ~0.05 (USD) and Price is 3000 (IDR), PE is 60,000. 
-                 # If PE is normal, EPS might be correct? 
-                 # Usually PE is calculated correctly by Yahoo, but PBV is often broken.
-                 # We'll trust PE for now, but fix PBV.
         
         # Refined Valuation Logic
         val_status = "N/A"
-        
-        # Only assess if we have at least PBV or PER
         if pe_ratio > 0 or pbv > 0:
             if (0 < pe_ratio < 10) and (0 < pbv < 1):
                 val_status = "Undervalued (Cheap)"
             elif pe_ratio > 25 or pbv > 4:
                 val_status = "Overvalued (Expensive)"
             elif pe_ratio == 0 and pbv > 0:
-                # Case: Earnings negative but has Book Value (e.g. Turnaround?)
-                val_status = "Negative Earnings (Check PBV)"
+                val_status = "Negative Earnings"
             else:
                 val_status = "Fair Value"
                 
@@ -148,10 +181,12 @@ def get_valuation_data(ticker):
             "pbv": pbv,
             "roe": roe,
             "eps": eps,
+            "der": der,
+            "eps_growth": eps_growth,
             "dividend_yield": div_yield,
             "market_cap": market_cap,
             "valuation_status": val_status,
-            "currency": "IDR" # We forced it
+            "currency": "IDR" 
         }
     except Exception as e:
         print(f"Warning: Valuation fetch failed: {e}")

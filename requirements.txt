@@ -10,6 +10,8 @@ requests
 python-dotenv
 qrcode
 Pillow
+openpyxl
+packaging
+python-dateutil
 pytest
 pytest-mock
-python-dateutil

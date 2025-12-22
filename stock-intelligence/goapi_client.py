@@ -298,3 +298,26 @@ class GoApiClient:
             print(f"GoAPI News Error: {e}")
             
         return []
+
+    def get_profile(self, ticker):
+        """
+        Fetches company profile and basic fundamentals (PER, PBV, EPS).
+        Endpoint: /stock/idx/{ticker}/profile
+        """
+        if not self.api_key: return None
+        
+        # GoAPI structure for profile: https://api.goapi.io/stock/idx/{ticker}/profile
+        # Note: Ticker should not have .JK
+        clean_ticker = ticker.replace(".JK", "")
+        url = f"{self.base_url}/{clean_ticker}/profile"
+        
+        try:
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data:
+                    return data['data']
+        except Exception as e:
+            print(f"GoAPI Profile Error: {e}")
+            
+        return None

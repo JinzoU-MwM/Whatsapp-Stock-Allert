@@ -124,13 +124,14 @@ class TestUpdates(unittest.TestCase):
             args, _ = mock_inst.generate_content.call_args
             prompt_sent = args[0]
             
-            self.assertIn("VWAP Hari Ini: 510", prompt_sent)
-            self.assertIn("Avg Price Top 1 Buyer: 490", prompt_sent)
-            self.assertIn("PING-PONG", prompt_sent) # Check if new logic header is there
-            self.assertIn("MARKDOWN ACCUMULATION", prompt_sent)
-            self.assertIn("POWER BUYER", prompt_sent)
+            self.assertIn("LOGIKA DETEKSI (GUIDELINES)", prompt_sent) 
+            self.assertIn("HANYA sebutkan kode broker yang TERTULIS EKSPLISIT", prompt_sent)
+            self.assertIn("Foreign Flow:", prompt_sent)
+            self.assertIn("PBV:", prompt_sent)
+            self.assertIn("Market Cap:", prompt_sent)
+            self.assertIn("PETA KEKUATAN (TOP 3)", prompt_sent)
             
-            print("   > Success: AI Prompt contains new VWAP, Prices, and Power Buyer logic.")
+            print("   > Success: AI Prompt contains ANTI-HALLUCINATION, Logic, and ALL 4 VALUATION/MARKET DATA points.")
 
     def test_04_news_query_context(self):
         """Verify News Fetcher enforces Indonesian context"""

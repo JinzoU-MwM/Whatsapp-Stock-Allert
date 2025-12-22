@@ -77,8 +77,17 @@ class QuantAnalyzer:
         # We need a DataFrame with 'NetForeignBuy' column
         rows = []
         for item in data:
-            net = float(item.get('net_foreign_buy') or item.get('net_buy') or item.get('foreign_net_buy', 0))
-            date = item.get('date')
+            # Try multiple keys for robustness (GoAPI response vary)
+            net = float(
+                item.get('net_foreign_buy') or 
+                item.get('net_buy') or 
+                item.get('foreign_net_buy') or
+                item.get('net_foreign_val') or # Value based
+                item.get('net_foreign_vol') or # Volume based
+                item.get('net_buy_foreign_val') or
+                0
+            )
+            date = item.get('date') or item.get('datetime')
             rows.append({'Date': date, 'NetForeignBuy': net})
             
         if not rows:

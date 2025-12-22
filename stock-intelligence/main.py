@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from technical_analysis import analyze_technical
-from catalyst_agent import get_ai_analysis
+from catalyst_agent import get_technical_analysis
 from news_fetcher import fetch_stock_news
 from chart_generator import generate_chart
 from quant_engine import QuantAnalyzer
@@ -174,7 +174,7 @@ def main():
             print("Running AI...")
             # Simple AI context prompt
             context = f"BANDAR MODE. {summary_text}"
-            ai_res = get_ai_analysis(ticker, ta_data, news_summary=context)
+            ai_res = get_technical_analysis(ticker, ta_data, news_summary=context)
             
             msg = f"🕵️ BANDAR REPORT: {ticker}\n{summary_text}\nAI: {str(ai_res)[:100]}..."
             broadcast_message(args.phone, msg, chart_path)
@@ -256,7 +256,7 @@ def main():
 
     # 4. AI Analysis
     print("Running AI Technical Analysis (Gemini)...")
-    ai_result = get_ai_analysis(ta_data['ticker'], ta_data, news_summary)
+    ai_result = get_technical_analysis(ta_data['ticker'], ta_data, news_summary)
     
     # Handle AI Result (Dict or String)
     if isinstance(ai_result, dict):
