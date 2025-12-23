@@ -317,7 +317,9 @@ def analyze_technical(ticker, timeframe="daily"):
     ema50 = latest['EMA_50']
     
     # --- GOAPI INDICATORS MERGE (Hybrid) ---
-    # Overwrite key metrics with official GoAPI data if available
+    # DISABLED: Causing mismatch with real-time price action (RSI lag).
+    # We will rely 100% on local calculation from the price dataframe.
+    """
     goapi_key = os.getenv("GOAPI_API_KEY")
     if goapi_key and GoApiClient and timeframe == "daily":
         try:
@@ -335,6 +337,7 @@ def analyze_technical(ticker, timeframe="daily"):
                 # might not have them (based on probe). We keep local calc for those.
         except Exception as e:
             print(f"   [Source] GoAPI Indicator Fetch Failed: {e}")
+    """
 
     # MACD Values
     macd = latest['MACD_12_26_9']
