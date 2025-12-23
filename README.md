@@ -1,40 +1,38 @@
-# 📈 WhatsApp Stock Intelligence Bot (WSIB)
+# 📈 WhatsApp Stock Intelligence Bot (WSIB) v2.5
 
-**AI-Powered Stock Analysis & Bandarmology Forensic Tool**
+**AI-Powered Stock Analysis | Top-Down Bandarmology | Multi-Strategy**
 
-WSIB is an advanced stock analysis platform that integrates **Technical Analysis**, **Fundamental Valuation**, and **Bandarmology Forensic** into a single, comprehensive report delivered directly via **WhatsApp**. It leverages **Google Gemini 1.5 Pro/Flash** to synthesize complex market data into actionable trading insights.
+WSIB is an advanced **Agentic AI** platform that acts as your personal **Chief Investment Officer (CIO)**. It integrates **Technical Analysis**, **Fundamental Valuation**, and **Forensic Bandarmology** into a single, comprehensive report delivered via **WhatsApp**. It leverages **Google Gemini 2.0 Flash/Pro** to synthesize complex market data into actionable trading plans.
 
 ## 🚀 Key Features
 
-### 🧠 AI Stock Intelligence
-*   **Unified Analysis**: Combines Technical (Price Action, Indicators), Fundamental (Valuation, Growth), and Bandarmology (Flow Analysis) into one report.
-*   **Gemini 1.5 Powered**: Uses state-of-the-art AI to interpret data, not just display it.
-*   **Smart Agents**:
-    *   **Technical Agent**: Analyzes Trend, Momentum, and Divergence.
-    *   **Forensic Agent**: Detects Accumulation/Distribution, "Inventory Dumping", and Market Maker movements.
-    *   **Fundamental Agent**: Evaluates Valuation (PER/PBV), Profitability (ROE), and Financial Health (DER).
-    *   **CIO Agent**: Synthesizes all inputs into a final **Verdict** (BUY/SELL/WAIT) with a Confidence Score.
+### 🧠 Adaptive AI Intelligence
+*   **Multi-Strategy Support**:
+    *   **SCALPING**: AI acts as an Aggressive Day Trader. Focus on Volume Spikes, Momentum, and Intraday Flow. Ignores Fundamentals.
+    *   **SWING (Default)**: Balanced approach. Combines Trend Following with Bandarmology Accumulation.
+    *   **INVESTING**: AI acts as a Value Investor. Focus on Undervalued Gems (PBV/PER) and Long-Term Accumulation ("The Map").
+*   **Unified Verdict**: A "CIO Agent" synthesizes Technical, Fundamental, and Bandar reports into a final decision with a precise **Confidence Score**.
 
-### 🕵️ Bandarmology Forensic
-*   **Real-Time Flow**: Analyzes daily Broker Summary (Top Buyers/Sellers) to detect Big Player movement.
-*   **Historical Analysis**: Tracks **20-day Cumulative Net Flow** to identify massive accumulation or hidden distribution.
-*   **Broker Flow Chart**: Visualizes Net Volume flow (Green = Accumulation, Red = Distribution) alongside Price action.
+### 🕵️ Advanced Bandarmology (Top-Down Forensic)
+*   **"The Map" (Periodic Analysis)**: Analyzes the Big Picture (e.g., last 20 days). Detects if the Big Player (Bandar) is holding goods or distributing.
+*   **"The Trigger" (Daily Analysis)**: Analyzes today's flow. Is it a real buy or a trap?
+*   **Smart Logic**:
+    *   **Markdown Accumulation**: Detects when average price of Bandar is above market price (Potential Reversal).
+    *   **Bull Trap**: Detects price rise but accompanied by massive Distribution.
 
-### � Data & Accuracy
-*   **GoAPI Integration (Premium)**:
-    *   **Real-Time Prices**: Accurate market data.
-    *   **Official Broker Summary**: Detailed broker transaction data.
-    *   **Accurate Valuation**: Uses official IDX Profile data for PER, PBV, and EPS (solving common Yahoo Finance errors for stocks like BUMI).
-*   **News Intelligence**:
-    *   Fetches latest news via **GoAPI** (filtered for current year) or **Google Search (Serper)**.
-    *   Ensures you never see outdated headlines.
+### 🛡️ Robust Technicals & Trading Plans
+*   **Always-On Plan**: AI generates specific **Buy Areas**, **Stop Loss (ATR Based)**, and **Profit Targets** regardless of market condition (even in Bearish trends for "Watchlist" purposes).
+*   **Auto-Correction**: Self-healing data pipeline that prioritizes local calculation for Critical Indicators (RSI, Pivot Points) to prevent API lag.
+*   **Data Accuracy**:
+    *   **GoAPI Integration (Premium)**: Official IDX Broker Summary & Real-Time Prices.
+    *   **Yahoo Finance Fallback**: Robust fallback for global data.
 
 ### 📱 WhatsApp Integration
-*   **Professional Reports**: Beautifully formatted reports using professional styling (bullets, separators).
-*   **Actionable Plans**: Clear "Action Plan" with Buy Areas, Stop Loss, and Target Prices.
-*   **Chart Delivery**: Sends analyzed charts directly to your chat.
+*   **Professional Reports**: Beautifully formatted with professional aesthetics (bullets, bolding, separators).
+*   **Chart Delivery**: Sends analyzed technical charts directly to your chat.
+*   **Broadcast Capable**: Send analysis to groups or specific numbers.
 
-## �️ Installation
+## 🛠️ Installation
 
 1.  **Clone the Repository**:
     ```bash
@@ -52,35 +50,32 @@ WSIB is an advanced stock analysis platform that integrates **Technical Analysis
     Create a `.env` file in the root directory:
     ```env
     GOOGLE_API_KEY=your_gemini_key
-    SERPER_API_KEY=your_serper_key
-    GOAPI_API_KEY=your_goapi_key
+    GOAPI_API_KEY=your_goapi_key (Optional but Recommended for Indo Stocks)
     TARGET_PHONE=628...
-    AI_MODEL=gemini-1.5-flash
+    AI_MODEL=gemini-2.0-flash-exp
     ```
 
-4.  **WhatsApp Service**:
-    Ideally runs with a companion Node.js service (included in `whatsapp-service/`) utilizing `whatsapp-web.js`.
+4.  **Start Application**:
+    Double-click `start_app.bat` (Windows).
 
-## �️ Usage
+## 🖥️ Usage
 
-### GUI Mode (Recommended)
-Double-click `start_app.bat`.
-1.  **Scan QR Code**: Connect your WhatsApp.
-2.  **Dashboard**:
-    *   **Market**: Quick Technical Analysis.
-    *   **Bandarology**: Deep-dive Broker Flow analysis.
-    *   **Portfolio**: Track your holdings with Real-Time P/L.
+### GUI Dashboard
+1.  **Select Strategy**: Choose between `SCALPING`, `SWING`, or `INVESTING` from the dropdown.
+2.  **Enter Ticker**: Type `BBRI`, `BMRI`, etc.
+3.  **Run Analysis**: The AI agents will perform parallel research and generate a comprehensive report.
+4.  **Send**: Click "Send WhatsApp" to forward the report to your phone.
 
 ### Command Line
 ```bash
 python stock-intelligence/main.py BBCA
 ```
 
-## 📝 Recent Updates
-*   **BUMI Fix**: Fixed "Merugi" status by switching Valuation data to GoAPI.
-*   **News Filter**: Added strict Year Filter (2025) to prevent outdated news.
-*   **Smart Formatting**: Improved bullet points and nesting for readable Action Plans.
-*   **BSML Fix**: Resolved missing Bandarmology data issues for stocks with limited history.
+## 📝 Recent Version 2.5 Updates
+*   **Feature**: **Selectable Strategies** (Scalping vs Swing vs Invest) in UI.
+*   **Logic**: **Top-Down Bandarmology** implemented. AI now compares "The Map" (Periodic) vs "The Trigger" (Daily).
+*   **Fix**: Resolved **RSI Anomaly** by strictly using local calculation over API pre-computed values.
+*   **UX**: Added **Strategy Dropdown** in the Market View.
 
 ---
 **Disclaimer**: This tool provides analysis based on data and AI interpretation. It is not financial advice. Always do your own research (DYOR).

@@ -42,16 +42,23 @@ class MarketView(ctk.CTkFrame):
         # Element 3: Timeframe (Segmented)
         self.timeframe_var = ctk.StringVar(value="daily")
         self.tf_seg_btn = ctk.CTkSegmentedButton(self.control_card, values=["Daily", "Weekly", "Monthly"], 
-                                                 variable=self.timeframe_var, width=250, height=40, 
+                                                 variable=self.timeframe_var, width=200, height=40, 
                                                  selected_color="#1F6AA5", selected_hover_color="#144870", font=("Arial", 12, "bold"))
         self.tf_seg_btn.grid(column=3, padx=10, **grid_opts)
 
-        # Element 4: Run Analysis Button
-        self.analyze_btn = ctk.CTkButton(self.control_card, text="RUN ANALYSIS ⚡", width=200, height=40, 
+        # Element 4: Strategy Selector (New)
+        self.strategy_var = ctk.StringVar(value="SWING")
+        self.strategy_combo = ctk.CTkComboBox(self.control_card, values=["SCALPING", "SWING", "INVESTING"],
+                                            variable=self.strategy_var, width=140, height=40,
+                                            font=("Arial", 12, "bold"), dropdown_font=("Arial", 12))
+        self.strategy_combo.grid(column=4, padx=10, **grid_opts)
+
+        # Element 5: Run Analysis Button
+        self.analyze_btn = ctk.CTkButton(self.control_card, text="RUN ANALYSIS ⚡", width=180, height=40, 
                                        font=ctk.CTkFont(size=14, weight="bold"),
                                        fg_color="#2CC985", hover_color="#25A96E", text_color="black",
                                        command=self.start_analysis_thread)
-        self.analyze_btn.grid(column=4, padx=(10, 20), **grid_opts)
+        self.analyze_btn.grid(column=5, padx=(10, 20), **grid_opts)
 
         # Progress Bar
         self.progress_bar = ctk.CTkProgressBar(self.control_card, height=4, progress_color="#2CC985", width=500)
@@ -199,6 +206,7 @@ class MarketView(ctk.CTkFrame):
             return
         
         timeframe = self.timeframe_var.get().lower()
+        style = self.strategy_var.get()
 
         self.toggle_inputs(False)
         self.progress_bar.set(0)
@@ -219,13 +227,14 @@ class MarketView(ctk.CTkFrame):
         self.sentiment_bar.set(0)
         self.sentiment_val_label.configure(text="--/100", text_color="gray")
 
-        threading.Thread(target=self.run_analysis_safe, args=(ticker, timeframe), daemon=True).start()
+        threading.Thread(target=self.run_analysis_safe, args=(ticker, timeframe, style), daemon=True).start()
 
-    def run_analysis_safe(self, ticker, timeframe):
+    def run_analysis_safe(self, ticker, timeframe, style):
         try:
             final_message, chart_path, sentiment_score = self.controller.run_analysis(
                 ticker, 
                 timeframe=timeframe,
+                style=style,
                 progress_callback=self.update_progress
             )
             

@@ -47,19 +47,39 @@ def _clean_json_response(text):
         }
 
 # --- 1. TECHNICAL AGENT (USER VERSION) ---
-def get_technical_analysis(ticker, ta_data, news_summary=""):
+def get_technical_analysis(ticker, ta_data, news_summary="", style="SWING"):
     """
     Supercharged Technical Agent.
     Focus: Market Structure, Trend, Momentum, Volatility.
+    Style: SCALPING / SWING / INVESTING
     """
     model = _get_model()
     if not model: return {"sentiment_score": 50, "analysis": "API Key Missing"}
 
-    print(f"Catalyst: Running Technical Strategy for {ticker}...")
+    print(f"Catalyst: Running Technical Strategy ({style}) for {ticker}...")
     
+    # Dynamic Role & Focus
+    role = "Senior Trader & Risk Manager"
+    focus = "Swing Trading (Follow Trend)"
+    sl_rule = "Standard (1 ATR)"
+    
+    if style == "SCALPING":
+        role = "Aggressive Day Trader (Scalper)"
+        focus = "Intraday Momentum & Volatility Spikes"
+        sl_rule = "Tight (Low Risk)"
+    elif style == "INVESTING":
+        role = "Long-Term Technical Analyst"
+        focus = "Major Trend & key Support/Resistance (Ignore Noise)"
+        sl_rule = "Loose (Major Support)"
+
     prompt = f"""
-    Bertindaklah sebagai Senior Trader & Risk Manager. 
-    Tugasmu bukan hanya membaca indikator, tapi menyusun TRADING PLAN untuk saham {ticker}.
+    Bertindaklah sebagai {role}. 
+    Tugasmu bukan hanya membaca indikator, tapi menyusun TRADING PLAN ({focus}) untuk saham {ticker}.
+    
+    [STRATEGY CONTEXT: {style}]
+    - SCALPING: Prioritaskan Volume Spikes, DOM, & Momentum jangka pendek. Hiraukan Valuasi.
+    - SWING: Cari Trend Follow atau Reversal Confirmation yang valid.
+    - INVESTING: Cari Entry point di Support Kuat (Buy on Weakness) untuk jangka panjang.
     
     [ANTI-HALLUCINATION POLICY]:
     1. STRICTLY use the provided data below. Do NOT invent numbers.
@@ -264,20 +284,48 @@ def get_fundamental_analysis(ticker, financial_data):
         return {"sentiment_score": 50, "analysis": f"Error: {e}"}
 
 # --- 4. SYNTHESIZER AGENT / CIO (ADDED) ---
-def get_final_verdict(ticker, tech_res, bandar_res, fund_res):
+def get_final_verdict(ticker, tech_res, bandar_res, fund_res, style="SWING"):
     """
     The Boss Agent.
     Combines Technical + Bandarmology + Fundamental into one final decision.
+    Style: SCALPING / SWING / INVESTING
     """
     model = _get_model()
     if not model: return {"final_score": 0, "final_reasoning": "Model Error"}
     
-    print(f"Catalyst: Synthesizing Final Verdict for {ticker}...")
+    print(f"Catalyst: Synthesizing Final Verdict ({style}) for {ticker}...")
+    
+    # Custom Logic Guidance based on Strategy
+    logic_guidance = ""
+    if style == "SCALPING":
+        logic_guidance = """
+        [STRATEGY: SCALPING / FAST TRADE]
+        - FOKUS UTAMA: Momentum, Volume, & Bandarmology Flow (Hari Ini).
+        - FUNDAMENTAL: "IGNORE" (Abaikan valuasi mahal/murah, fokus hanya pada liquiditas).
+        - ACTION: Jika Volume Spike + Bandar Akumulasi = BUY Agresif (Stop Loss Ketat).
+        """
+    elif style == "INVESTING":
+        logic_guidance = """
+        [STRATEGY: LONG TERM INVESTING]
+        - FOKUS UTAMA: Fundamental (Valuasi Murah + Growth) & 'The Map' Bandarmology.
+        - TECHNICAL: Gunakan hanya untuk Entry di Support (Buy on Weakness). Hiraukan noise harian.
+        - ACTION: Jika Fundamental Bagus + Valuasi Murah = BUY & HOLD.
+        """
+    else: # SWING
+        logic_guidance = """
+        [STRATEGY: SWING TRADING (Default)]
+        - FOKUS: Keseimbangan Teknikal (Trend) & Bandarmology.
+        - FUNDAMENTAL: Check kesehatan (hindari saham gorengan berhutang tinggi).
+        - LOGIKA PENIMBANGAN (WEIGHTING):
+          - Jika Fundamental JELEK tapi Teknikal & Bandar BAGUS -> "Speculative Buy" (Short Term only).
+          - Jika Fundamental BAGUS dan Teknikal BAGUS -> "Strong Buy" (Swing/Invest).
+          - Jika Bandarmologi "DISTRIBUSI MASIF", abaikan sinyal Buy teknikal (Risk of False Breakout).
+        """
 
     prompt = f"""
-    Anda adalah Chief Investment Officer (CIO). Anda menerima 3 laporan untuk saham {ticker}.
-    Ambil keputusan final: BELI, JUAL, atau TAHAN.
-
+    Anda adalah Chief Investment Officer (CIO) dengan memegang strategi: {style}.
+    Ambil keputusan final: BELI, JUAL, atau TAHAN untuk saham {ticker}.
+ 
     1. LAPORAN TEKNIKAL:
        - Score: {tech_res.get('sentiment_score')} | Action: {tech_res.get('action')}
        - Plan: {tech_res.get('trading_plan', {})}
@@ -287,16 +335,12 @@ def get_final_verdict(ticker, tech_res, bandar_res, fund_res):
        - Score: {bandar_res.get('sentiment_score')} | Status: {bandar_res.get('status')}
        - Insight: {bandar_res.get('analysis')}
 
-    3. LAPORAN FUNDAMENTAL (WAJIB DIPERTIMBANGKAN):
+    3. LAPORAN FUNDAMENTAL:
        - Score: {fund_res.get('sentiment_score')} 
        - STATUS VALUASI: {fund_res.get('valuation_status')} (Undervalued/Fair/Overvalued)
        - Insight: {fund_res.get('analysis')}
 
-    LOGIKA PENIMBANGAN (WEIGHTING):
-    - Jika Fundamental JELEK tapi Teknikal & Bandar BAGUS -> "Speculative Buy" (Short Term only).
-    - Jika Fundamental BAGUS dan Teknikal BAGUS -> "Strong Buy" (Swing/Invest).
-    - Jika Bandarmologi "DISTRIBUSI MASIF", abaikan sinyal Buy teknikal (Risk of False Breakout).
-    - Jika Teknikal "Downtrend" tapi Fundamental & Bandar Bagus -> "Wait for Reversal" (Watchlist).
+    {logic_guidance}
 
     [REQUIREMENT: DETAILED ACTION PLAN]:
     Provide a specific execution strategy including:

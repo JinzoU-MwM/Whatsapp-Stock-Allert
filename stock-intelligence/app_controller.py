@@ -133,13 +133,14 @@ class StockAppController:
             self.log(f"Error fetching groups: {e}")
             return []
 
-    def run_analysis(self, ticker, timeframe="daily", progress_callback=None):
+    def run_analysis(self, ticker, timeframe="daily", style="SWING", progress_callback=None):
         """
         Orchestrates the unified "Stock Intelligence" pipeline.
         Combines Technical, Forensic Bandarmology, and News into one report.
+        Style: SWING, SCALPING, INVESTING
         """
         ticker = ticker.upper()
-        self.log(f"🔵 Memulai Stock Intelligence untuk {ticker} ({timeframe})...")
+        self.log(f"🔵 Memulai Stock Intelligence ({style}) untuk {ticker} ({timeframe})...")
         if progress_callback: progress_callback(0.1)
         
         # Save to History
@@ -279,7 +280,7 @@ class StockAppController:
             self.log("🌍 Berita Terambil via Parallel Fetch.")
 
             # 3. RUN AI PIPELINE (Refactored)
-            self.log("🧠 Melakukan Riset AI (Technical + Forensic + Fundamental)...")
+            self.log(f"🧠 Melakukan Riset AI (Strategy: {style})...")
             
             # Prepare Fundamental Data Input
             fund_data = {
@@ -291,7 +292,7 @@ class StockAppController:
             }
             
             ai_tech, ai_forensic, ai_fund, ai_cio = self._run_ai_pipeline(
-                ticker, ta_data, context_data, fund_data, news_summary
+                ticker, ta_data, context_data, fund_data, news_summary, style=style
             )
             
             if progress_callback: progress_callback(0.8)
@@ -328,7 +329,7 @@ class StockAppController:
             traceback.print_exc()
             raise e
 
-    def _run_ai_pipeline(self, ticker, ta_data, context_data, fund_data, news_summary):
+    def _run_ai_pipeline(self, ticker, ta_data, context_data, fund_data, news_summary, style="SWING"):
         """Executes AI agents in parallel."""
         import concurrent.futures
         
@@ -339,7 +340,8 @@ class StockAppController:
         
         try:
             with concurrent.futures.ThreadPoolExecutor() as ai_executor:
-                future_ai_tech = ai_executor.submit(get_technical_analysis, ticker, ta_data, news_summary)
+                # Pass style to Technical Agent
+                future_ai_tech = ai_executor.submit(get_technical_analysis, ticker, ta_data, news_summary, style=style)
                 future_ai_fund = ai_executor.submit(get_fundamental_analysis, ticker, fund_data)
                 
                 # Only run forensic if context exists
@@ -357,7 +359,8 @@ class StockAppController:
                     
                 # --- CIO SYNTHESIS ---
                 self.log("⚖️ Menjalankan CIO Agent (Synthesis Decision)...")
-                ai_cio = get_final_verdict(ticker, ai_tech, ai_forensic, ai_fund)
+                # Pass style to CIO Agent
+                ai_cio = get_final_verdict(ticker, ai_tech, ai_forensic, ai_fund, style=style)
                 
         except Exception as e:
             self.log(f"❌ Error in Parallel AI: {e}")
