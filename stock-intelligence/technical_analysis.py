@@ -313,8 +313,9 @@ def analyze_technical(ticker, timeframe="daily"):
     stoch_k = latest.get('STOCHk_14_3_3', 50)
     stoch_d = latest.get('STOCHd_14_3_3', 50)
 
-    ema20 = latest['EMA_20']
-    ema50 = latest['EMA_50']
+    # Safe Access to EMAs (might be missing for new stocks)
+    ema20 = latest.get('EMA_20', 0)
+    ema50 = latest.get('EMA_50', 0)
     
     # --- GOAPI INDICATORS MERGE (Hybrid) ---
     # DISABLED: Causing mismatch with real-time price action (RSI lag).
@@ -339,10 +340,10 @@ def analyze_technical(ticker, timeframe="daily"):
             print(f"   [Source] GoAPI Indicator Fetch Failed: {e}")
     """
 
-    # MACD Values
-    macd = latest['MACD_12_26_9']
-    macd_signal = latest['MACDs_12_26_9']
-    macd_hist = latest['MACDh_12_26_9']
+    # MACD Values (Safe Access)
+    macd = latest.get('MACD_12_26_9', 0)
+    macd_signal = latest.get('MACDs_12_26_9', 0)
+    macd_hist = latest.get('MACDh_12_26_9', 0)
 
     # Bollinger Bands
     cols = df.columns.tolist()
