@@ -209,18 +209,23 @@ class StockAppController:
                     broker_history_df = self.quant_engine.analyze_historical_broker_summary(hist_raw)
                     cum_summary = self.quant_engine.get_cumulative_broker_summary(hist_raw)
                     broker_flow_df = self.quant_engine.prepare_broker_flow_data(hist_raw)
+                    
+                    # [NEW] Top-Down Analysis (The Map)
+                    periodic_res = self.quant_engine.analyze_periodic_map(hist_raw, days=20)
+                    if periodic_res:
+                        context_data.update(periodic_res)
                 else:
                     broker_history_df = None
                     cum_summary = {'top_sellers': [], 'top_buyers': []}
                     broker_flow_df = None
                 
                 # Context Extraction
-                
-                # Context Extraction
                 top_seller_code = cum_summary['top_sellers'][0][0] if cum_summary['top_sellers'] else bs_data.get('top_seller', 'N/A')
                 context_data['top_seller'] = top_seller_code
                 context_data['top1_buy_price'] = bs_data.get('top1_buy_price', 0)
                 context_data['top1_sell_price'] = bs_data.get('top1_sell_price', 0)
+                context_data['daily_dominance'] = bs_data.get('dominance', 'N/A')
+                context_data['market_price'] = ta_data.get('price', 0)
                 
                 if top_seller_code != "N/A":
                     net_vol, avg_price = self.quant_engine.calculate_broker_net_history(hist_raw, top_seller_code)
@@ -230,6 +235,7 @@ class StockAppController:
 
                 context_data['top3_buyers'] = bs_data.get('top_buyers_formatted', bs_data.get('top_buyers_list', 'N/A'))
                 context_data['top3_sellers'] = bs_data.get('top_sellers_formatted', bs_data.get('top_sellers_list', 'N/A'))
+
                 
                 # Final Verdict Calculation
                 tech_score = 50 
@@ -436,15 +442,20 @@ class StockAppController:
                 msg += f"⚠️ *WARNING*: {forensic_warning}\n"
             msg += "\n"
             
-            # --- 5. EXECUTION PLAN ---
-            msg += "⚔️ *5. TRADING PLAN*\n"
+            # --- 5. EXECUTION PLAN (AI GENERATED) ---
+            msg += "⚔️ *5. TRADING PLAN (AI Level)*\n"
             if trading_plan:
                 msg += f"🟢 *BUY*: {trading_plan.get('buy_area', '-')}\n"
                 msg += f"🔴 *STOP LOSS*: {trading_plan.get('stop_loss', '-')}\n"
                 msg += f"🎯 *TARGET*: {trading_plan.get('target_profit', '-')}\n"
+                
+                plan_note = ai_tech.get('plan_note')
+                if plan_note:
+                    msg += f"📝 _Note: {plan_note}_\n"
             else:
                 msg += "⚠️ Wait for clear setup.\n"
-            msg += "\n"
+            
+            msg += "⚠️ _Disclaimer: Plan ini auto-generated dari level teknikal. DYOR._\n\n"
             
             # --- 6. ACTION PLAN (CIO) ---
             action_plan = ai_cio.get('action_plan', '')

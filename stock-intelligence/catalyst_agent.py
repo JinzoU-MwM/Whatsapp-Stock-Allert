@@ -78,10 +78,16 @@ def get_technical_analysis(ticker, ta_data, news_summary=""):
     DATA HISTORIS SINGKAT:
     {ta_data.get('recent_history', 'N/A')}
     
-    LEVEL PIVOT (SUPPORT/RESISTANCE REFERENSI):
+    LEVEL PIVOT & FIBONACCI (SUPPORT/RESISTANCE REFERENSI):
     - Pivot: {ta_data.get('pivots', {}).get('pivot', 'N/A')}
-    - Support: S1={ta_data.get('pivots', {}).get('s1', 'N/A')}, S2={ta_data.get('pivots', {}).get('s2', 'N/A')}
-    - Resistance: R1={ta_data.get('pivots', {}).get('r1', 'N/A')}, R2={ta_data.get('pivots', {}).get('r2', 'N/A')}
+    - Support (Classic): S1={ta_data.get('pivots', {}).get('s1', 'N/A')}, S2={ta_data.get('pivots', {}).get('s2', 'N/A')}
+    - Resistance (Classic): R1={ta_data.get('pivots', {}).get('r1', 'N/A')}, R2={ta_data.get('pivots', {}).get('r2', 'N/A')}
+    
+    - Fibonacci Retracement:
+      0.236: {ta_data.get('fib_levels', {}).get(0.236, 'N/A'):.0f}
+      0.382: {ta_data.get('fib_levels', {}).get(0.382, 'N/A'):.0f} (Key Support)
+      0.618: {ta_data.get('fib_levels', {}).get(0.618, 'N/A'):.0f} (Golden Pocket)
+    
     (Gunakan level ini untuk menentukan Entry, SL, dan TP yang presisi)
 
     BERITA & SENTIMEN:
@@ -100,10 +106,11 @@ def get_technical_analysis(ticker, ta_data, news_summary=""):
         "analysis": "Analisis teknikal padat (max 150 kata). Fokus pada Price Action & Volume.",
         "action": "BUY_ON_WEAKNESS / BUY_ON_BREAKOUT / WAIT_AND_SEE / SELL / AVOID",
         "trading_plan": {{
-            "buy_area": "Range harga beli ideal",
-            "stop_loss": "Harga SL (Gunakan Low terdekat dikurang 1x ATR)",
-            "target_profit": "Target harga realistis (Resistance terdekat)"
-        }}
+            "buy_area": "Range harga beli (Wajib isi, jika Bearish isi area Support terdekat untuk pantau)",
+            "stop_loss": "Harga SL (Critical Support - 1 ATR)",
+            "target_profit": "Target harga (Resistance)"
+        }},
+        "plan_note": "Isi pesan tambahan jika plan ini high risk atau 'Wait for Confirmation'"
     }}
     """
     try:
@@ -151,63 +158,56 @@ def get_bandarmology_analysis(ticker, context_data):
     
     prompt = f"""
     ROLE: Investigator Bandarmologi Profesional (Market Flow Detective).
-    TUGAS: Analisis aliran dana institusi (smart money) di saham {ticker} dan berikan kesimpulan naratif yang tajam.
+    TUGAS: Analisis aliran dana institusi (smart money) menggunakan metode TOP-DOWN (Peta Besar vs Trigger Harian).
 
     [DATA INTEGRITY RULES]:
     1. Base your analysis PURELY on the Forensik Data below.
     2. Do NOT mention specific broker names (ZP, BK, etc.) unless they appear in [PETA KEKUATAN].
-    3. If Top Buyer/Seller data is missing/hyphen, do not guess.
-    4. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA).
-    
+    3. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA).
     
     --- DATA FORENSIK ---
-    [SUMMARY HARI INI]: 
-    {bs_today}
     
-    [PETA KEKUATAN (TOP 3)]:
-    - Top Buyer: {top3_buyers_raw}
-    - Top Seller: {top3_sellers_raw}
-
-    [JEJAK PENJUAL UTAMA (TOP SELLER)]:
-    - Kode Broker: {seller_code}
-    - Historis (Sebelum Hari Ini): {seller_hist}
-    - Avg Price Jual Hari Ini: {avg_price_seller}
-
-    [DATA TAMBAHAN]:
-    - VWAP Hari Ini: {vwap:,.0f}
-    - Perubahan Harga: {price_change:.2f}%
-    - Avg Price Top 1 Buyer: {top1_buy_price:,.0f}
+    1. THE MAP (PETA BESAR - {context_data.get('periodic_period', 'N/A')} Hari Terakhir):
+    - Fase: {context_data.get('periodic_status', 'N/A')}
+    - Penguasa: {context_data.get('periodic_buyer_type', 'N/A')}
+    - Top Accumulator: {context_data.get('periodic_top_accum', 'N/A')}
+    - Avg Price Bandar: {context_data.get('periodic_avg_price', 0):,.0f} (vs Harga Market: {context_data.get('market_price', 0):,.0f})
     
-    [VALUASI & ASING]:
+    2. THE TRIGGER (HARI INI):
+    - Status Hari Ini: {bs_today}
+    - Top 3 Buyer: {top3_buyers_raw}
+    - Top 3 Seller: {top3_sellers_raw}
+    - Dominasi Volume: {context_data.get('daily_dominance', 'N/A')}
+    
+    [VALUASI & CONTEXT]:
     - Market Cap: {mcap_str}
-    - PBV: {pbv:.2f}x (Mahal jika > 2x, Murah jika < 1x)
-    - PER: {per:.2f}x
+    - PBV: {pbv:.2f}x
     - Foreign Flow: {foreign_flow}
     
-    [DETAIL BROKER TERATAS (AVG & NET)]:
-    - Top Buyers: {top3_buyers_raw}
-    - Top Sellers: {top3_sellers_raw}
-
-    --- 2. LOGIKA DETEKSI (GUIDELINES) ---
-    Gunakan logika ini HANYA sebagai referensi cara berpikir.
+    --- LOGIKA DETEKSI (TOP-DOWN ANALYSIS) ---
+    Gunakan logika ini untuk kesimpulan:
     
-    [DAFTAR KATEGORI BROKER]:
-    - RITEL (Lemah): YP, PD, XL, XC, KK, CC, CP, EP, NI.
-    - BANDAR/MACRO (Kuat): BK, AK, ZP, RX, KZ, CS, CD.
-    - SCALPER (Cepat): MG.
-
-    [LOGIKA ANALISIS]:
-    1. [DISTRIBUSI BARANG LAMA]: Jika Top Seller jualan masif hari ini dan historis netral, waspada exit strategy.
-    2. [TRANSFER OF WEALTH]: Perhatikan siapa makan siapa (Institusi buang ke Ritel = Distribusi).
-    3. [MARKDOWN ACCUMULATION]: Jika harga turun/merah tapi Top Buyer didominasi Institusi yang menampung di harga rata-rata bawah, ini adalah akumulasi senyap.
-    4. [POWER BUYER vs VWAP]: Jika Avg Price Buyer > VWAP = Hajar Kanan (Bullish). Jika << VWAP = Pasang Jaring (Defensif).
+    1. [STRONG BUY SIGNAL]: 
+       - Peta Besar = AKUMULASI (Institusi).
+       - Harga Market DEKAT dengan Avg Price Bandar.
+       - Trigger Hari Ini = AKUMULASI (Institusi beli lagi).
+       
+    2. [JEBAKAN / TRAP]:
+       - Peta Besar = DISTRIBUSI.
+       - Trigger Hari Ini = Akumulasi (Hanya pancingan/mark-up sesaat).
+       - Tindakan: Hati-hati / Sell on Strength.
+       
+    3. [MARKDOWN ACCUMULATION]:
+       - Peta Besar = Akumulasi.
+       - Trigger Hari Ini = Harga Turun tapi Institusi tampung (Net Buy).
+       - Tindakan: Cicil Beli (Buy on Weakness).
 
     --- FORMAT OUTPUT JSON ---
     {{
-        "sentiment_score": (0=Distribusi Total, 50=Netral, 100=Akumulasi Kuat),
+        "sentiment_score": (0=Distribusi Total, 50=Netral, 100=Strong Accumulation),
         "status": "DISTRIBUSI / AKUMULASI / MARK-DOWN / CHURNING",
-        "analysis": "Analisis naratif 1-2 paragraf profesional (Max 150 kata). Fokus pada 'Story' aliran dana. SIAPA yang mendominasi? Apakah bandar agresif atau defensif?",
-        "warning": "Opsional: Isi jika ada bahaya besar seperti 'Exit Strategy Barang Lama' atau 'Jebakan Volume'."
+        "analysis": "Analisis naratif tajam (Max 150 kata). Fokus pada hubungan Peta Besar vs Trigger Hari Ini. Apakah hari ini valid atau jebakan?",
+        "action": "BUY / WAIT / SELL"
     }}
     """
     try:

@@ -134,10 +134,24 @@ class QuantAnalyzer:
         top1_buyer = buys.index[0] if not buys.empty else "N/A"
         top1_seller = sells.index[0] if not sells.empty else "N/A"
 
-        # 3. Deteksi Tipe Bandar
-        buyer_type = "Retail" if top1_buyer in self.retail_brokers else "Institusi/Market Maker"
+        # 4. Kalkulasi Kekuatan (Accumulation/Distribution) - DOMINANCE LOGIC
+        # Fix: Don't just look at Top 1. Look at Top 3 Aggregate.
         
-        # 4. Kalkulasi Kekuatan (Accumulation/Distribution)
+        top3_inst_buy_vol = 0
+        top3_retail_buy_vol = 0
+        
+        for b in top3_buyers:
+            vol = buys.loc[b]['Volume']
+            if b in self.insti_brokers:
+                top3_inst_buy_vol += vol
+            else:
+                top3_retail_buy_vol += vol
+                
+        # Determine Dominant Buyer Type
+        buyer_type = "Retail"
+        if top3_inst_buy_vol > top3_retail_buy_vol:
+            buyer_type = "Institusi/Market Maker"
+            
         net_vol_ratio = 0
         if top3_sell_vol > 0:
             net_vol_ratio = top3_buy_vol / top3_sell_vol
@@ -145,14 +159,14 @@ class QuantAnalyzer:
         status = "Netral"
         score = 0 # Skala -50 (Distribusi Kuat) s/d +50 (Akumulasi Kuat)
 
-        if net_vol_ratio > 1.5:
+        if net_vol_ratio > 1.2:
             if buyer_type == "Institusi/Market Maker":
-                status = "BIG ACCUMULATION (Institusi)"
+                status = "BIG ACCUMULATION (Smart Money)"
                 score = 50
             else:
-                status = "Akumulasi Retail (Hati-hati)"
-                score = 20
-        elif net_vol_ratio > 1.1:
+                status = "Akumulasi Retail (Weak)"
+                score = 10 # Downgrade if Retail dominates
+        elif net_vol_ratio > 1.05:
             status = "Akumulasi Ringan"
             score = 10
         elif net_vol_ratio < 0.6:
@@ -161,6 +175,27 @@ class QuantAnalyzer:
         elif net_vol_ratio < 0.9:
             status = "Distribusi Ringan"
             score = -20
+            
+        # Special Logic: Markdown Accumulation (Price Drop + Inst Buy)
+        # Passed via args? We don't have price change here yet typically, but we can verify later.
+        
+        # Special Logic: Retail Sell + Inst Buy = Strongest Signal
+        seller_type = "Institusi"
+        top3_retail_sell_vol = 0
+        for b in top3_sellers:
+            if b in self.retail_brokers:
+                top3_retail_sell_vol += buys.loc[b]['Volume'] if b in buys.index else 0 # Careful, sellers index in buys? No.
+                # Correct logic:
+                vol_sell = sells.loc[b]['Volume']
+                top3_retail_sell_vol += vol_sell
+                
+        if top3_retail_sell_vol > (top3_sell_vol * 0.5): # If >50% sell volume is Retail
+             seller_type = "Retail"
+             
+        if buyer_type == "Institusi/Market Maker" and seller_type == "Retail" and net_vol_ratio > 1.0:
+             status = "STRONG ACCUMULATION (Weaker Hands -> Stronger Hands)"
+             score = 60 # Boost score
+
         
         # 5. Cek Average Price (Average Down/Up)
         avg_buy_price = buys.head(3)['AvgPrice'].mean()
@@ -194,7 +229,64 @@ class QuantAnalyzer:
             "avg_buy_price": avg_buy_price, # Top 3 Mean
             "top1_buy_price": top1_buy_price, # Specific Top 1
             "top1_sell_price": top1_sell_price, # Specific Top 1
-            "summary": narrative
+            "summary": narrative,
+            "dominance": buyer_type
+        }
+
+    def analyze_periodic_map(self, hist_data, days=20):
+        """
+        Analyzes Periodic Broker Summary ("The Map") from provided historical data.
+        Returns a summary dictionary for Catalyst Agent.
+        """
+        if not hist_data:
+            return {"status": "Unknown", "summary": "Data Historis Tidak Tersedia"}
+            
+        # Cumulative Calculation
+        summ = self.get_cumulative_broker_summary(hist_data)
+        
+        top_buyers = summ.get('top_buyers', [])
+        top_sellers = summ.get('top_sellers', [])
+        
+        # Analyze Cumulative Dominance
+        total_inst_buy = 0
+        total_retail_buy = 0
+        
+        top3_buyers = top_buyers[:3]
+        top3_sellers = top_sellers[:3]
+        
+        for b, vol in top3_buyers:
+            if b in self.insti_brokers: total_inst_buy += vol
+            else: total_retail_buy += vol
+            
+        buyer_type = "Institusi" if total_inst_buy > total_retail_buy else "Retail"
+        
+        # Calculate Net Vol Ratio of Top 3 in the period
+        # Note: top_buyers has (code, vol). top_sellers has (code, -vol).
+        top3_buy_vol = sum([x[1] for x in top3_buyers])
+        top3_sell_vol = abs(sum([x[1] for x in top3_sellers]))
+        
+        net_ratio = top3_buy_vol / top3_sell_vol if top3_sell_vol > 0 else 1.0
+        
+        periodic_status = "Sideways"
+        if net_ratio > 1.2:
+             periodic_status = "Accumulation Phase" if buyer_type == "Institusi" else "Retail Accumulation"
+        elif net_ratio < 0.8:
+             periodic_status = "Distribution Phase"
+             
+        # Calculate Average Price of Top Accumulator
+        top1_accum_code = top3_buyers[0][0] if top3_buyers else "-"
+        top1_accum_avg = 0
+        
+        # Utilize existing helper to get specific broker's avg over the period
+        net_vol, top1_accum_avg = self.calculate_broker_net_history(hist_data, top1_accum_code)
+
+        return {
+            "periodic_status": periodic_status,
+            "periodic_top_accum": top1_accum_code,
+            "periodic_avg_price": top1_accum_avg,
+            "periodic_buyer_type": buyer_type,
+            "periodic_period": days,
+            "periodic_summary": f"{periodic_status} by {buyer_type}. Top Accum: {top1_accum_code} (@ {top1_accum_avg:.0f})"
         }
 
     def analyze_foreign_flow(self, foreign_data):
