@@ -436,12 +436,17 @@ def analyze_technical(ticker, timeframe="daily"):
     if adx > 25: adx_strength = "Kuat"
     elif adx > 50: adx_strength = "Sangat Kuat"
     
-    if price > ema20 > ema50:
-        trend = f"Bullish ({adx_strength})"
-    elif price < ema20 < ema50:
-        trend = f"Bearish ({adx_strength})"
+    trend = "Netral"
+    
+    if ema20 > 0 and ema50 > 0:
+        if price > ema20 > ema50:
+            trend = f"Bullish ({adx_strength})"
+        elif price < ema20 < ema50:
+            trend = f"Bearish ({adx_strength})"
+        else:
+            trend = "Sideways / Konsolidasi"
     else:
-        trend = "Sideways / Konsolidasi"
+        trend = "Price Action Only (New Stock)"
     
     # MACD Status
     macd_status = "Netral"
