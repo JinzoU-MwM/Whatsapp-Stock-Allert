@@ -480,16 +480,20 @@ def analyze_technical(ticker, timeframe="daily"):
         pass
 
     # --- MAJOR TREND (WEEKLY) ---
-    # Kept same logic as before for simplicity
     major_trend = "Netral"
+    w_ema50_val = 0 # Default
     try:
         logic = {'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'}
         df_weekly = df.resample('W').apply(logic)
         df_weekly.ta.ema(length=20, append=True)
+        df_weekly.ta.ema(length=50, append=True) # New for Investing SL
+        
         if len(df_weekly) > 0:
             latest_weekly = df_weekly.iloc[-1]
             w_price = latest_weekly['Close']
             w_ema20 = latest_weekly.get('EMA_20', 0)
+            w_ema50_val = latest_weekly.get('EMA_50', 0)
+            
             if w_ema20 > 0:
                  if w_price > w_ema20: major_trend = "Bullish"
                  else: major_trend = "Bearish"
@@ -646,5 +650,6 @@ def analyze_technical(ticker, timeframe="daily"):
         "verdict": verdict,
         "valuation": valuation_data,
         "recent_history": history_str,
-        "pivots": pivots
+        "pivots": pivots,
+        "weekly_ema50": w_ema50_val
     }

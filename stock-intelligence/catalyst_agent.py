@@ -72,6 +72,67 @@ def get_technical_analysis(ticker, ta_data, news_summary="", style="SWING"):
         focus = "Major Trend & key Support/Resistance (Ignore Noise)"
         sl_rule = "Loose (Major Support)"
 
+    # --- DYNAMIC PLAN CALCULATION (USER REFINED STRATEGIES) ---
+    current_price = ta_data['price']
+    atr = ta_data.get('atr', current_price * 0.02)
+    pivots = ta_data.get('pivots', {})
+    w_ema50 = ta_data.get('weekly_ema50', 0)
+    ema20 = ta_data.get('ema20', 0)
+    
+    calc_sl = 0
+    calc_tp = 0
+    plan_label = ""
+    extra_note = ""
+    
+    if style == "SCALPING":
+        # SCALPING MODE (High Speed)
+        # SL: 0.8x - 1.0x ATR (Tight but handle noise)
+        # TP: Fixed Tick > 1.5% - 2% (to cover fees)
+        
+        # SL Calculation
+        sl_dist = 0.8 * atr
+        calc_sl = current_price - sl_dist
+        
+        # TP Calculation (Min 2% Net)
+        tp_dist = 1.5 * atr
+        min_tp = current_price * 1.025 # 2.5% Gross
+        calc_tp_atr = current_price + tp_dist
+        calc_tp = max(calc_tp_atr, min_tp)
+        
+        plan_label = "SCALPING (Tight Risk)"
+        extra_note = "Note: Cek VWAP. Buy hanya jika Harga > VWAP. TP Wajib > 2% untuk tutup fee."
+        
+    elif style == "INVESTING":
+        # INVESTING MODE (Position Trading)
+        # SL: Weekly EMA 50 Or Monthly Low (Deep Support)
+        # TP: Open Target (Let Profit Run)
+        
+        if w_ema50 > 0 and w_ema50 < current_price:
+            calc_sl = w_ema50
+            sl_note = "Weekly EMA 50"
+        else:
+            # Fallback to Pivot S2 if W-EMA50 invalid/above price
+            calc_sl = pivots.get('s2', current_price * 0.85) 
+            sl_note = "Major Support (S2)"
+            
+        calc_tp = 0 # Open Target
+        plan_label = "INVESTING (Position)"
+        extra_note = f"SL menggunakan {sl_note}. Target OPEN (Hold sampai Trend Change / Breakdown MA200)."
+        
+    else: 
+        # SWING MODE (Default Golden Standard)
+        # SL: 2.0x ATR (Breathable)
+        # TP: 3.0x ATR (Trailing Stop Activation)
+        
+        calc_sl = current_price - (2.0 * atr)
+        calc_tp = current_price + (3.0 * atr)
+        
+        plan_label = "SWING (Standard Risk)"
+        extra_note = "Gunakan EMA 20 sebagai konfirmasi tren. Jika Harga > TP 1, aktifkan Trailing Stop di +2 ATR."
+
+    # Format TP string for output
+    tp_str = f"{calc_tp:.0f}" if calc_tp > 0 else "OPEN (Run Trend)"
+
     prompt = f"""
     Bertindaklah sebagai {role}. 
     Tugasmu bukan hanya membaca indikator, tapi menyusun TRADING PLAN ({focus}) untuk saham {ticker}.
@@ -107,8 +168,14 @@ def get_technical_analysis(ticker, ta_data, news_summary="", style="SWING"):
       0.236: {ta_data.get('fib_levels', {}).get(0.236, 'N/A'):.0f}
       0.382: {ta_data.get('fib_levels', {}).get(0.382, 'N/A'):.0f} (Key Support)
       0.618: {ta_data.get('fib_levels', {}).get(0.618, 'N/A'):.0f} (Golden Pocket)
+
+    [CALCULATED TRADING PLAN ({plan_label})]:
+    - BUY AREA: {ta_data.get('support', 0):.0f} - {current_price:.0f} (atau dekat EMA20)
+    - STOP LOSS: {calc_sl:.0f}
+    - TARGET PROFIT: {tp_str}
     
-    (Gunakan level ini untuk menentukan Entry, SL, dan TP yang presisi)
+    (PENTING: Gunakan angka kalkulasi di atas sebagai REFERENSI UTAMA. {extra_note} Pertahankan Risk Profile ini.)
+
 
     BERITA & SENTIMEN:
     {news_summary}
