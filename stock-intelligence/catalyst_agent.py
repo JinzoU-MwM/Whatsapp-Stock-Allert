@@ -249,8 +249,13 @@ def get_bandarmology_analysis(ticker, context_data):
 
     [DATA INTEGRITY RULES]:
     1. Base your analysis PURELY on the Forensik Data below.
-    2. Do NOT mention specific broker names (ZP, BK, etc.) unless they appear in [PETA KEKUATAN].
-    3. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA).
+    2. LANGUAGE: STRICTLY INDONESIAN (BAHASA INDONESIA).
+    3. CITATION MANDATORY: You MUST explicitly mention the timeframe defined in [PETA BESAR] (e.g. "Dalam 20 hari terakhir...").
+    
+    [BROKER INTELLIGENCE (HINTS)]:
+    - RETAIL: YP, PD, CC, NI, XC (Jika mereka Top Buyer -> Kemungkinan Distribusi / Retail Domination).
+    - INSTITUTION/ASING: BK, KZ, AK, ZP, RX (Jika mereka Top Buyer -> Akumulasi Institusi).
+    - MIXED/LOCAL BIG: MG, LG, IF, DR.
     
     --- DATA FORENSIK ---
     
@@ -279,21 +284,21 @@ def get_bandarmology_analysis(ticker, context_data):
        - Harga Market DEKAT dengan Avg Price Bandar.
        - Trigger Hari Ini = AKUMULASI (Institusi beli lagi).
        
-    2. [JEBAKAN / TRAP]:
+    2. [JEBAKAN / TRAP / DISTRIBUTION]:
        - Peta Besar = DISTRIBUSI.
-       - Trigger Hari Ini = Akumulasi (Hanya pancingan/mark-up sesaat).
+       - Trigger Hari Ini = Akumulasi RETAIL (YP/PD Top Buyer) -> Ini bukan akumulasi asli, tapi pancingan.
        - Tindakan: Hati-hati / Sell on Strength.
        
     3. [MARKDOWN ACCUMULATION]:
        - Peta Besar = Akumulasi.
-       - Trigger Hari Ini = Harga Turun tapi Institusi tampung (Net Buy).
+       - Trigger Hari Ini = Harga Turun tapi Institusi tampung (Net Buy) atau Asing Masuk.
        - Tindakan: Cicil Beli (Buy on Weakness).
 
     --- FORMAT OUTPUT JSON ---
     {{
         "sentiment_score": (0=Distribusi Total, 50=Netral, 100=Strong Accumulation),
         "status": "DISTRIBUSI / AKUMULASI / MARK-DOWN / CHURNING",
-        "analysis": "Analisis naratif tajam (Max 150 kata). Fokus pada hubungan Peta Besar vs Trigger Hari Ini. Apakah hari ini valid atau jebakan?",
+        "analysis": "Analisis naratif tajam (Max 150 kata). WAJIB MENCANTUMKAN DURASI (misal: 'Dalam 20 hari terakhir...'). Fokus pada siapa pemain utama (Retail vs Institusi) berdasarkan Kode Broker.",
         "action": "BUY / WAIT / SELL"
     }}
     """

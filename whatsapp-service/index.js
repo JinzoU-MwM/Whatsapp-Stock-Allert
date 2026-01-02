@@ -69,14 +69,23 @@ app.get('/qr', (req, res) => {
 });
 
 app.post('/logout', async (req, res) => {
+    console.log('Received Logout Request...');
     try {
         await client.logout();
-        isReady = false;
-        latestQr = null;
+        // State update handled in 'disconnected' event, but we double ensure here
+        console.log('Logout command sent to client.');
         res.json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
         console.error('Error logging out:', error);
-        res.status(500).json({ error: 'Failed to logout', details: error.message });
+        // Even if logout fails (e.g. timeout), we should reset state
+        isReady = false;
+        latestQr = null;
+        try {
+             await client.destroy(); 
+             await client.initialize();
+        } catch (e) { console.error('Force reset failed', e); }
+        
+        res.status(500).json({ error: 'Failed to logout gracefully, forced reset', details: error.message });
     }
 });
 
@@ -84,11 +93,17 @@ client.on('authenticated', () => {
     console.log('Authenticated successfully.');
 });
 
-client.on('disconnected', (reason) => {
+client.on('disconnected', async (reason) => {
     console.log('Client was logged out', reason);
     isReady = false;
     latestQr = null;
-    // Re-initialize to allow new login scan
+    
+    // Destroy and Re-initialize to allow new login scan
+    try {
+        await client.destroy();
+    } catch (ignored) {}
+    
+    console.log('Re-initializing client for new session...');
     client.initialize().catch(err => console.error('Re-init failed:', err));
 });
 

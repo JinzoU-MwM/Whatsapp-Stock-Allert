@@ -1,43 +1,77 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Base Image: Python 3.9 (Slim)
+FROM python:3.9-slim
 
-# Set the working directory
-WORKDIR /app
-
-# Install system dependencies (required for some python packages like Pillow/Matplotlib)
-# We also install Node.js here because the app orchestrates it
+# Install system dependencies & Node.js
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
-    tk \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean \
+    supervisor \
+    # Chrome dependencies for Puppeteer
+    chromium \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libgcc1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    wget \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file
-COPY requirements.txt .
+# Install Node.js 18
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Set Working Directory
+WORKDIR /app
 
-# Copy the entire project
+# Copy Project Files
 COPY . .
 
-# Install Node.js dependencies
+# Install Python Dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install streamlit
+
+# Install Node.js Dependencies
 WORKDIR /app/whatsapp-service
 RUN npm install
 
-# Return to root
+# Puppeteer Config to use installed Chromium (Lighter than downloading Chrome)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Reset Workdir
 WORKDIR /app
 
-# Create .env from example if not exists (User should mount .env)
-# COPY .env.example .env
+# Expose Ports (Streamlit: 8080)
+EXPOSE 8080
 
-# Expose port for Node.js service
-EXPOSE 3000
-
-# Run the headless script (assuming user wants to run the CLI bot or a daemon)
-# Since desktop_app.py is GUI, we can't run it easily.
-# We'll default to a shell or a placeholder command.
-CMD ["python", "stock-intelligence/main.py", "--help"]
+# Command to run Supervisor (Manages both Node & Python)
+CMD ["/usr/bin/supervisord", "-c", "supervisord.conf"]

@@ -234,8 +234,19 @@ class StockAppController:
                     context_data['seller_hist_net'] = f"{pos_str} ({net_vol:,.0f} Lot)"
                     context_data['seller_avg_price'] = f"{avg_price:,.0f}"
 
-                context_data['top3_buyers'] = bs_data.get('top_buyers_formatted', bs_data.get('top_buyers_list', 'N/A'))
-                context_data['top3_sellers'] = bs_data.get('top_sellers_formatted', bs_data.get('top_sellers_list', 'N/A'))
+                # Fallback for AI Context if Real-time is empty but History exists
+                rt_buyers = bs_data.get('top_buyers_formatted', bs_data.get('top_buyers_list', 'N/A'))
+                rt_sellers = bs_data.get('top_sellers_formatted', bs_data.get('top_sellers_list', 'N/A'))
+                
+                if (rt_buyers == 'N/A' or rt_buyers == '-') and broker_history_df is not None and not broker_history_df.empty:
+                    last_day = broker_history_df.iloc[-1]
+                    rt_buyers = last_day.get('Top3Buyers', 'N/A')
+                    rt_sellers = last_day.get('Top3Sellers', 'N/A')
+                    # Update summary too if needed
+                    context_data['today_summary'] = f"Data Harian (Fallback {last_day.name.strftime('%d-%m')}): {rt_buyers} vs {rt_sellers}"
+
+                context_data['top3_buyers'] = rt_buyers
+                context_data['top3_sellers'] = rt_sellers
 
                 
                 # Final Verdict Calculation
@@ -467,13 +478,20 @@ class StockAppController:
                 msg += "━━━━━━━━━━━━━━━━━━\n"
                 
                 # Handle List or String
+                # Handle List, String, or Dict (Corner Case)
                 if isinstance(action_plan, list):
                     for item in action_plan:
                         msg += f"👉 {item}\n"
+                elif isinstance(action_plan, dict):
+                    # If AI returns a dict (e.g. {'step1': 'do this'}), flatten it
+                    for k, v in action_plan.items():
+                         msg += f"👉 *{k}*: {v}\n"
                 else:
                     # Robust Line-by-Line Parsing
                     import re
-                    lines = action_plan.split('\n')
+                    # Ensure it's string
+                    action_plan_str = str(action_plan)
+                    lines = action_plan_str.split('\n')
                     for line in lines:
                         # Check for nested bullets (indented)
                         # Matches spaces + bullet (* or -)

@@ -142,6 +142,20 @@ def get_valuation_data(ticker):
         market_cap = info.get('marketCap', 0)
         # New Metrics for Fundamental Agent
         der = info.get('debtToEquity', 0)
+        # Yahoo Finance usually returns debtToEquity as Percentage (e.g. 150 for 1.5x)
+        # We want to display it as Ratio (x) or normalize it.
+        # IF DER > 100, it's likely %, but could be high leverage. 
+        # IF DER > 50000, it's likely garbage/negative equity artifact.
+        
+        if der:
+            if der > 10000: # Cap at 100x (Extreme)
+                print(f"   [Valuation] DER too high ({der}), capping/flagging.")
+                der = 999.0 # Sentinel for "Negative Equity/Distress"
+            else:
+                 # Normalize to ratio for AI consistency (e.g. 150 -> 1.5)
+                 # Assumption: YF sends %, so div by 100
+                 der = der / 100.0
+
         eps_growth = info.get('earningsGrowth', 0) # This is usually decimal (0.15 for 15%)
         if eps_growth: eps_growth = eps_growth * 100 # Convert to %
         
